@@ -49,9 +49,11 @@ lib/db.ts                        Prisma singleton (accelerateUrl constructor)
 types/next-auth.d.ts             Session type: adds tornId + userId
 app/api/torn/route.ts            Torn API proxy: auth check → rate limit → cache → fetch
 app/api/snapshots/route.ts       GET list / POST create StatSnapshot (hourly dedup)
+app/api/market/route.ts          GET watched items + prices, POST add item, DELETE remove
+app/api/alerts/route.ts          GET alert list, PATCH mark read (ids[] or markAll)
 app/api/inngest/route.ts         Inngest serve handler (GET/POST/PUT)
 inngest/client.ts                Inngest({ id: "tornhq" }) singleton
-inngest/functions.ts             takeStatSnapshot — cron 0 */6 * * *, iterates all users
+inngest/functions.ts             takeStatSnapshot (cron 0 */6 * * *) + pollMarketPrices (cron */15 * * * *)
 hooks/use-countdown.ts           useCountdown(unixTimestamp) + formatDuration()
 hooks/use-torn-data.ts           useTornData<T>(section, selections, { refreshInterval })
 components/dashboard/StatBar.tsx              Animated progress bar + live countdowns
@@ -61,6 +63,11 @@ components/dashboard/DashboardClient.tsx      Main dashboard — fetches user/ba
 components/stats/StatGrowthChart.tsx          Recharts 4-line battle stats growth chart
 components/stats/SnapshotTable.tsx            Historical snapshot table (server component)
 components/stats/SnapshotTrigger.tsx          Manual "Take Snapshot" button + router.refresh()
+hooks/use-alerts.ts                          useAlerts({ unreadOnly, limit, refreshInterval }) → { alerts, unreadCount, markRead, markAllRead }
+components/market/PriceSparkline.tsx         Mini Recharts line chart (40px height, no axes)
+components/market/AddItemForm.tsx            Inline add-by-Torn-ID form with optional alert threshold
+components/market/WatchedItemsTable.tsx      Self-fetching table with sparklines, price delta %, remove button
+components/alerts/AlertDrawer.tsx            Sheet drawer — alert list, relative timestamps, mark-all-read
 ```
 
 ## Design Tokens
@@ -112,8 +119,8 @@ INNGEST_SIGNING_KEY        # required for production Inngest; local dev works wi
 |------|-------|--------|
 | 1 | Foundation: auth, theme, API proxy, layout shell | ✅ Complete |
 | 2 | Core Dashboard: stat bars, cooldown timers, Inngest snapshots, stat growth chart | ✅ Complete |
-| 3 | Market + Notifications: price tracker, alerts, notification drawer | ⏳ Next |
-| 4 | Faction + Polish: member activity, responsiveness, skeletons | ⏳ Pending |
+| 3 | Market + Notifications: price tracker, alerts, notification drawer | ✅ Complete |
+| 4 | Faction + Polish: member activity, responsiveness, skeletons | ⏳ Next |
 
 ## Coding Conventions
 

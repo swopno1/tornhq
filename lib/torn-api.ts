@@ -89,6 +89,31 @@ export interface TornBattleStats {
   total: number;
 }
 
+export interface TornMarketListing {
+  ID: number;
+  cost: number;
+  amount: number;
+}
+
+export interface TornItemMarketResponse {
+  itemmarket: TornMarketListing[] | null;
+}
+
+export interface TornItem {
+  name: string;
+  description: string;
+  type: string;
+  buy_price: number;
+  sell_price: number;
+  market_value: number;
+  circulation: number;
+  image: string;
+}
+
+export interface TornItemsResponse {
+  items: Record<string, TornItem>;
+}
+
 /**
  * Makes a typed request to the Torn API.
  * The API key is appended server-side — never pass it from the client.
