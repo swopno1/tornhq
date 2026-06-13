@@ -44,7 +44,10 @@ async function fetchStorefront() {
   ]);
 
   const profile =
-    profileResult.status === "fulfilled" && !profileResult.value.error
+    profileResult.status === "fulfilled" &&
+    !profileResult.value.error &&
+    profileResult.value.status != null &&
+    profileResult.value.last_action != null
       ? profileResult.value
       : null;
 
