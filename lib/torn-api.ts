@@ -214,9 +214,13 @@ export interface TornSlotsResult {
  */
 export async function fetchSlotsBalance(apiKey: string): Promise<number | null> {
   try {
-    const data = await callTornApi<TornUserMoney>("/user?selections=money", apiKey);
-    if ((data as Partial<TornApiError>).error) return null;
-    return data.points_balance ?? null;
+    // Use the canonical v1 base directly — avoid any TORN_API_BASE misconfiguration
+    const url = `https://api.torn.com/user?selections=money&key=${apiKey}`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data: TornUserMoney & Partial<TornApiError> = await res.json();
+    if (data.error) return null;
+    return typeof data.points_balance === "number" ? data.points_balance : null;
   } catch {
     return null;
   }
@@ -236,10 +240,11 @@ export async function playSlots(
   apiKey: string,
   betAmount: number,
 ): Promise<TornSlotsResult & Partial<TornApiError>> {
-  const BASE_V2 = (process.env.TORN_API_BASE ?? "https://api.torn.com").replace(/\/$/, "");
+  // v2 always uses the canonical Torn API host — never derive from TORN_API_BASE
+  // which may point to a v1-specific proxy and would produce an invalid v2 URL.
   const body = new URLSearchParams({ bet: betAmount.toString() });
 
-  const res = await fetch(`${BASE_V2}/v2/user/slots?key=${apiKey}`, {
+  const res = await fetch(`https://api.torn.com/v2/user/slots?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),

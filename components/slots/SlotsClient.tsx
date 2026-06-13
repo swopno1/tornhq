@@ -87,6 +87,7 @@ function netPnl(job: SlotsJob) {
 export function SlotsClient() {
   const [jobs, setJobs] = useState<SlotsJob[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
@@ -115,11 +116,19 @@ export function SlotsClient() {
 
   const fetchBalance = useCallback(async () => {
     setBalanceLoading(true);
-    // selections=money returns points_balance (casino token balance) among other fields
-    const res = await fetch("/api/torn?section=user&selections=money");
-    if (res.ok) {
+    setBalanceError(null);
+    try {
+      const res = await fetch("/api/slots/balance");
       const data = await res.json();
-      if (typeof data.points_balance === "number") setBalance(data.points_balance);
+      if (res.ok && typeof data.balance === "number") {
+        setBalance(data.balance);
+      } else {
+        setBalance(null);
+        setBalanceError(data.error ?? "Unable to fetch balance");
+      }
+    } catch {
+      setBalance(null);
+      setBalanceError("Network error fetching balance");
     }
     setBalanceLoading(false);
   }, []);
@@ -234,7 +243,9 @@ export function SlotsClient() {
                 ) : balance !== null ? (
                   fmt(balance)
                 ) : (
-                  <span className="text-muted-foreground text-sm">Unavailable</span>
+                  <span className="text-destructive text-xs font-mono font-normal">
+                    {balanceError ?? "Unavailable"}
+                  </span>
                 )}
               </p>
             </div>
