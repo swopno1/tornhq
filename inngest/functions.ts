@@ -134,7 +134,11 @@ export const pollMarketPrices = inngest.createFunction(
   },
 );
 
-export const runSlotsJob = inngest.createFunction(
+// Slots automation removed — Torn does not expose a public API endpoint for playing slots.
+// The play endpoint is www.torn.com/page.php?sid=slotsData&step=play which requires
+// browser session cookies and Cloudflare clearance, not feasible from a server.
+
+export const _runSlotsJob_DISABLED = inngest.createFunction(
   { id: "run-slots-job", name: "Run Slots Spin", triggers: [{ event: "slots/job.tick" }] },
   async ({ event, step }) => {
     const { jobId } = event.data as { jobId: string };
@@ -264,7 +268,7 @@ export const runSlotsJob = inngest.createFunction(
   },
 );
 
-export const triggerDailySlotsJobs = inngest.createFunction(
+export const _triggerDailySlotsJobs_DISABLED = inngest.createFunction(
   {
     id: "trigger-daily-slots",
     name: "Trigger Daily Slots Jobs",

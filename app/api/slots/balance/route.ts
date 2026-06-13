@@ -44,8 +44,9 @@ export async function GET() {
     }
 
     const balance = typeof data.casino?.tokens === "number" ? data.casino.tokens : 0;
+    const streak = typeof data.casino?.streak === "number" ? data.casino.streak : null;
 
-    return NextResponse.json({ balance });
+    return NextResponse.json({ balance, streak });
   } catch (err) {
     return NextResponse.json(
       { error: `Network error: ${err instanceof Error ? err.message : String(err)}` },
