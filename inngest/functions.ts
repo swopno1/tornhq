@@ -16,9 +16,11 @@ export const takeStatSnapshot = inngest.createFunction(
     );
 
     const results = await Promise.allSettled(
-      users.map((user: { id: string; apiKeyEnc: string }) =>
+      users
+        .filter((u) => u.apiKeyEnc != null)
+        .map((user) =>
         step.run(`snapshot-${user.id}`, async () => {
-          const apiKey = decrypt(user.apiKeyEnc);
+          const apiKey = decrypt(user.apiKeyEnc!);
           const data = await callTornApi<TornBattleStats>(
             "/user?selections=battlestats,profile",
             apiKey,
@@ -57,7 +59,7 @@ export const pollMarketPrices = inngest.createFunction(
     const apiUser = await step.run("get-api-user", () =>
       prisma.user.findFirst({ select: { id: true, apiKeyEnc: true } }),
     );
-    if (!apiUser) return { skipped: "no users" };
+    if (!apiUser || !apiUser.apiKeyEnc) return { skipped: "no users" };
 
     const watchedItems = await step.run("get-watched-items", () =>
       prisma.marketItem.findMany({
@@ -71,7 +73,7 @@ export const pollMarketPrices = inngest.createFunction(
     );
     if (!watchedItems.length) return { processed: 0 };
 
-    const apiKey = decrypt(apiUser.apiKeyEnc);
+    const apiKey = decrypt(apiUser.apiKeyEnc!);
 
     const results = await Promise.allSettled(
       watchedItems.map(

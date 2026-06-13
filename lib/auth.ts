@@ -1,33 +1,36 @@
 import { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { compare } from "bcryptjs";
 import { prisma } from "./db";
-import { encrypt } from "./crypto";
-import { validateApiKey } from "./torn-api";
 
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
-      id: "torn-api-key",
-      name: "Torn API Key",
+      id: "credentials",
+      name: "Email & Password",
       credentials: {
-        apiKey: { label: "API Key", type: "password" },
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.apiKey?.trim()) return null;
+        if (!credentials?.email || !credentials?.password) return null;
 
-        const result = await validateApiKey(credentials.apiKey.trim());
-        if (!result) return null;
-
-        const { playerId, name } = result;
-        const apiKeyEnc = encrypt(credentials.apiKey.trim());
-
-        const user = await prisma.user.upsert({
-          where: { tornId: playerId },
-          update: { apiKeyEnc },
-          create: { tornId: playerId, apiKeyEnc },
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email.toLowerCase().trim() },
         });
 
-        return { id: user.id, tornId: user.tornId, name };
+        if (!user || !user.passwordHash) return null;
+        if (!user.emailVerified) return null;
+
+        const valid = await compare(credentials.password, user.passwordHash);
+        if (!valid) return null;
+
+        return {
+          id: user.id,
+          email: user.email,
+          tornId: user.tornId ?? 0,
+          name: user.email?.split("@")[0] ?? null,
+        };
       },
     }),
   ],

@@ -49,6 +49,12 @@ export async function POST() {
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (!user.apiKeyEnc) {
+    return NextResponse.json(
+      { error: "No Torn API key configured." },
+      { status: 400 },
+    );
+  }
 
   const apiKey = decrypt(user.apiKeyEnc);
   const data = await callTornApi<TornBattleStats>(

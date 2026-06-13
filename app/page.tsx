@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Zap, ExternalLink, Users, Shield, RefreshCw, AlertCircle, List } from "lucide-react";
+import Image from "next/image";
+import { ExternalLink, Users, Shield, RefreshCw, AlertCircle, List } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BazaarGrid } from "@/components/landing/BazaarGrid";
@@ -43,11 +44,16 @@ async function fetchStorefront() {
     callTornApi<TornUserBazaarResponse>("/user?selections=bazaar", apiKey, { revalidate: 300 }),
   ]);
 
+  if (profileResult.status === "rejected") {
+    console.error("[storefront] profile fetch threw:", profileResult.reason);
+  } else if (profileResult.value.error) {
+    console.error("[storefront] Torn API error:", profileResult.value.error);
+  }
+
   const profile =
     profileResult.status === "fulfilled" &&
     !profileResult.value.error &&
-    profileResult.value.status != null &&
-    profileResult.value.last_action != null
+    profileResult.value.name != null
       ? profileResult.value
       : null;
 
@@ -84,9 +90,7 @@ export default async function StorefrontPage() {
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-neon-cyan/10 ring-1 ring-neon-cyan/30">
-              <Zap className="h-4 w-4 text-neon-cyan" />
-            </div>
+            <Image src="/icon.svg" alt="TornHQ" width={28} height={28} className="shrink-0" unoptimized />
             <span className="font-heading text-sm font-black tracking-widest text-neon-cyan glow-cyan">
               TORNHQ
             </span>
@@ -176,6 +180,7 @@ export default async function StorefrontPage() {
 
                   {/* Online activity */}
                   <div className="flex flex-wrap items-center gap-3">
+                    {profile.last_action && (
                     <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${ACTIVITY_DOT[profile.last_action.status] ?? "bg-muted-foreground/40"}`}
@@ -184,6 +189,7 @@ export default async function StorefrontPage() {
                       {profile.last_action.status !== "Online" &&
                         ` · ${profile.last_action.relative}`}
                     </span>
+                    )}
 
                     {faction && (
                       <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
@@ -295,7 +301,7 @@ export default async function StorefrontPage() {
       <footer className="border-t border-border/40 py-5">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 sm:flex-row">
           <div className="flex items-center gap-2">
-            <Zap className="h-3.5 w-3.5 text-neon-cyan" />
+            <Image src="/icon.svg" alt="" width={16} height={16} className="shrink-0" unoptimized />
             <span className="font-heading text-xs font-bold tracking-widest text-neon-cyan">
               TORNHQ
             </span>

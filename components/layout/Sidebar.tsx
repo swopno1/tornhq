@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -9,7 +10,6 @@ import {
   Users,
   Plane,
   Settings,
-  Zap,
   Shield,
 } from "lucide-react";
 import {
@@ -47,9 +47,7 @@ export function AppSidebar() {
       {/* Logo / Brand */}
       <SidebarHeader className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-neon-cyan/10 ring-1 ring-neon-cyan/30">
-            <Zap className="h-4 w-4 text-neon-cyan" />
-          </div>
+          <Image src="/icon.svg" alt="TornHQ" width={28} height={28} className="shrink-0" unoptimized />
           <span className="font-heading text-sm font-bold tracking-widest text-neon-cyan glow-cyan group-data-[collapsible=icon]:hidden">
             TORNHQ
           </span>

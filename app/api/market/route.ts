@@ -47,6 +47,12 @@ export async function POST(req: Request) {
     select: { apiKeyEnc: true },
   });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (!user.apiKeyEnc) {
+    return NextResponse.json(
+      { error: "No Torn API key configured." },
+      { status: 400 },
+    );
+  }
 
   const apiKey = decrypt(user.apiKeyEnc);
   const data = await callTornApi<TornItemsResponse>(

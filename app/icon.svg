@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="100" height="100" rx="16" fill="#050508"/>
+  <!-- Subtle border ring -->
+  <rect x="2" y="2" width="96" height="96" rx="14" fill="none" stroke="#00e5ff" stroke-width="0.5" opacity="0.2"/>
+  <!-- Corner brackets -->
+  <path d="M16 2 L2 2 L2 16" fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="square" opacity="0.85"/>
+  <path d="M84 2 L98 2 L98 16" fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="square" opacity="0.85"/>
+  <path d="M2 84 L2 98 L16 98" fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="square" opacity="0.85"/>
+  <path d="M98 84 L98 98 L84 98" fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="square" opacity="0.85"/>
+  <!-- Lightning bolt -->
+  <polygon points="62,8 22,55 47,55 38,92 78,45 53,45" fill="#00e5ff" filter="url(#glow)"/>
+</svg>

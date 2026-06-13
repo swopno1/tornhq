@@ -24,6 +24,11 @@ export const metadata: Metadata = {
   },
   description:
     "TornHQ — Advanced analytics, market tracking, and planning tools for Torn City players.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

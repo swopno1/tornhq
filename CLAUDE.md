@@ -6,6 +6,7 @@
 
 **TornHQ** is a dark-mode, cyberpunk-aesthetic companion web app for [Torn City](https://www.torn.com) players.
 GitHub: https://github.com/swopno1/tornhq
+Production URL: https://torn.vivereply.com
 Working directory: `/Users/mdamirhossain/ViveScript-Solutions/projects/torn-city`
 
 ## Stack
@@ -108,7 +109,7 @@ label, avatar, dropdown-menu
 
 ```
 NEXTAUTH_SECRET            # openssl rand -hex 32
-NEXTAUTH_URL               # http://localhost:3000
+NEXTAUTH_URL               # https://torn.vivereply.com (production)
 API_KEY_ENCRYPTION_SECRET  # openssl rand -hex 32  (must be 64 hex chars)
 TORN_API_BASE              # https://api.torn.com
 DATABASE_URL               # prisma+postgres://... (from .env via prisma.config.ts)
@@ -116,6 +117,8 @@ UPSTASH_REDIS_REST_URL
 UPSTASH_REDIS_REST_TOKEN
 INNGEST_EVENT_KEY          # required for production Inngest; local dev works without it
 INNGEST_SIGNING_KEY        # required for production Inngest; local dev works without it
+RESEND_API_KEY             # from resend.com dashboard
+RESEND_FROM                # "TornHQ <noreply@yourdomain.com>" (must use a verified Resend domain)
 ```
 
 ## Dev Roadmap
