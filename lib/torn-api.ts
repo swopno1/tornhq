@@ -188,25 +188,35 @@ export async function callTornApi<T>(
   return res.json();
 }
 
-export interface TornUserPoints {
-  points?: number;
+/** User money/financial data from Torn API v1 (selections=money) */
+export interface TornUserMoney {
+  points_balance?: number;   // casino token balance
+  money_onhand?: number;
+  vault_amount?: number;
+  cayman_bank?: number;
 }
 
 export interface TornSlotsResult {
-  result?: string;
+  result?: string;       // e.g. "win" | "lose"
   bet?: number;
-  winnings?: number;
-  tokens_won?: number;
-  balance?: number;
+  winnings?: number;     // tokens won (net profit over bet)
+  tokens_won?: number;   // alternative field name used in some API versions
+  payout?: number;       // another alternative
+  amount_won?: number;
+  balance?: number;      // remaining balance after spin (if returned)
   [key: string]: unknown;
 }
 
-/** Fetches the player's current casino token (points) balance. Returns null on error. */
+/**
+ * Fetches the player's casino token (points) balance.
+ * Uses selections=money which includes points_balance.
+ * Returns null on any error.
+ */
 export async function fetchSlotsBalance(apiKey: string): Promise<number | null> {
   try {
-    const data = await callTornApi<TornUserPoints>("/user?selections=points", apiKey);
+    const data = await callTornApi<TornUserMoney>("/user?selections=money", apiKey);
     if ((data as Partial<TornApiError>).error) return null;
-    return data.points ?? null;
+    return data.points_balance ?? null;
   } catch {
     return null;
   }
@@ -214,22 +224,40 @@ export async function fetchSlotsBalance(apiKey: string): Promise<number | null> 
 
 /**
  * Plays one round of casino slots via Torn API v2.
- * POST /v2/user/slots — body: { bet: betAmount }
- * Note: verify the exact endpoint/payload against the Torn API v2 docs if the response changes.
+ * Endpoint: POST /v2/user/slots?key=API_KEY
+ * Body: URL-encoded form data with `bet` field.
+ *
+ * If the Torn API returns "Wrong fields", verify:
+ * - The bet amount is within allowed slot ranges
+ * - The endpoint path (/v2/user/slots) is correct in the Torn API v2 docs
+ * The raw API response is returned as-is so callers can inspect unknown fields.
  */
 export async function playSlots(
   apiKey: string,
   betAmount: number,
 ): Promise<TornSlotsResult & Partial<TornApiError>> {
   const BASE_V2 = (process.env.TORN_API_BASE ?? "https://api.torn.com").replace(/\/$/, "");
+  const body = new URLSearchParams({ bet: betAmount.toString() });
+
   const res = await fetch(`${BASE_V2}/v2/user/slots?key=${apiKey}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ bet: betAmount }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
     cache: "no-store",
   });
+
   if (!res.ok) throw new Error(`Torn slots API responded with HTTP ${res.status}`);
   return res.json();
+}
+
+/** Extracts the win amount from a TornSlotsResult regardless of which field name Torn uses. */
+export function extractSlotsWinnings(result: TornSlotsResult): number {
+  return (
+    (typeof result.winnings === "number" ? result.winnings : 0) ||
+    (typeof result.tokens_won === "number" ? result.tokens_won : 0) ||
+    (typeof result.payout === "number" ? result.payout : 0) ||
+    (typeof result.amount_won === "number" ? result.amount_won : 0)
+  );
 }
 
 /** Validates an API key by fetching minimal user data. Returns player_id on success, null on failure. */

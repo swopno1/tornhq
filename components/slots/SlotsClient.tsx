@@ -115,10 +115,11 @@ export function SlotsClient() {
 
   const fetchBalance = useCallback(async () => {
     setBalanceLoading(true);
-    const res = await fetch("/api/torn?section=user&selections=points");
+    // selections=money returns points_balance (casino token balance) among other fields
+    const res = await fetch("/api/torn?section=user&selections=money");
     if (res.ok) {
       const data = await res.json();
-      if (typeof data.points === "number") setBalance(data.points);
+      if (typeof data.points_balance === "number") setBalance(data.points_balance);
     }
     setBalanceLoading(false);
   }, []);

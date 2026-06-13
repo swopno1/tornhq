@@ -1,7 +1,7 @@
 import { inngest } from "./client";
 import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
-import { callTornApi, fetchSlotsBalance, playSlots } from "@/lib/torn-api";
+import { callTornApi, fetchSlotsBalance, playSlots, extractSlotsWinnings } from "@/lib/torn-api";
 import type { TornBattleStats, TornItemMarketResponse } from "@/lib/torn-api";
 
 export const takeStatSnapshot = inngest.createFunction(
@@ -190,10 +190,13 @@ export const runSlotsJob = inngest.createFunction(
 
       if (apiResult.error) {
         await prisma.slotsJob.update({ where: { id: jobId }, data: { status: "FAILED" } });
-        throw new Error(`Torn API error: ${apiResult.error.error}`);
+        // Log full response for diagnosis — error.error is the Torn error string, full result shows all fields
+        throw new Error(
+          `Torn API slots error [${apiResult.error.code}]: ${apiResult.error.error} | raw: ${JSON.stringify(apiResult)}`,
+        );
       }
 
-      const won = typeof apiResult.winnings === "number" ? apiResult.winnings : 0;
+      const won = extractSlotsWinnings(apiResult);
       const newCompleted = job.completedRuns + 1;
       const newStatus = newCompleted >= job.totalRuns ? "COMPLETED" : "RUNNING";
       const estimatedBalance = balance !== null ? balance - job.betAmount + won : null;
