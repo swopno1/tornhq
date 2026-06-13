@@ -2,6 +2,7 @@ import { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { prisma } from "./db";
+import { isSuperAdmin } from "./admin";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -42,12 +43,16 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.userId = user.id;
         token.tornId = (user as { id: string; tornId: number }).tornId;
+        token.isAdmin = isSuperAdmin(user.email);
+        token.email = user.email ?? undefined;
       }
       return token;
     },
     async session({ session, token }) {
       session.user.userId = token.userId;
       session.user.tornId = token.tornId;
+      session.user.isAdmin = token.isAdmin;
+      session.user.email = token.email ?? null;
       return session;
     },
   },

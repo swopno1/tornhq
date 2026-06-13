@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -11,6 +12,7 @@ import {
   Plane,
   Settings,
   Shield,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,6 +43,8 @@ const secondaryItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.isAdmin ?? false;
 
   return (
     <Sidebar collapsible="icon">
@@ -94,9 +98,46 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Admin section — visible to super admin only */}
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs tracking-widest text-neon-amber/60 uppercase">
+              Admin
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith("/dashboard/admin")}
+                    tooltip="Admin Panel"
+                    className={cn(
+                      "transition-colors duration-150",
+                      pathname.startsWith("/dashboard/admin") &&
+                        "bg-sidebar-accent text-neon-amber ring-1 ring-neon-amber/20",
+                    )}
+                  >
+                    <Link href="/dashboard/admin">
+                      <ShieldCheck
+                        className={cn(
+                          "h-4 w-4",
+                          pathname.startsWith("/dashboard/admin")
+                            ? "text-neon-amber"
+                            : "text-muted-foreground",
+                        )}
+                      />
+                      <span>Admin Panel</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
-      {/* Footer — API status + settings */}
+      {/* Footer — settings + API status */}
       <SidebarFooter className="border-t border-border">
         <SidebarSeparator className="my-0" />
         <SidebarMenu>
@@ -116,7 +157,6 @@ export function AppSidebar() {
           ))}
         </SidebarMenu>
 
-        {/* API connection status */}
         <div className="flex items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:justify-center">
           <Shield className="h-3.5 w-3.5 shrink-0 text-neon-green" />
           <span className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">

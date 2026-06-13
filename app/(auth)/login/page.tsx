@@ -207,13 +207,6 @@ function LoginForm() {
         </CardContent>
       </Card>
 
-      <p className="text-center font-mono text-xs text-muted-foreground">
-        No account?{" "}
-        <Link href="/register" className="text-neon-cyan transition-colors hover:text-neon-cyan/80">
-          Create one
-        </Link>
-      </p>
-
       <p className="text-center font-mono text-[11px] text-muted-foreground/40">
         Not affiliated with or endorsed by Torn City Ltd.
       </p>
