@@ -46,13 +46,12 @@ async function main() {
   const apiKey = decrypt(user.apiKeyEnc);
   console.log(`API key decrypted: ${apiKey.slice(0, 4)}****${apiKey.slice(-4)}`);
 
-  // ── Step 1: Probe money selection ─────────────────────────────────────────
-  console.log("\n── Balance check (GET /user?selections=money) ──");
-  const balRes = await fetch(`https://api.torn.com/user?selections=money&key=${apiKey}`);
+  // ── Step 1: Check balance via v2 casino endpoint ──────────────────────────
+  console.log("\n── Balance check (GET /v2/user/casino) ──");
+  const balRes = await fetch(`https://api.torn.com/v2/user/casino?key=${apiKey}`);
   const balData = await balRes.json();
-  console.log("Full money response:", JSON.stringify(balData, null, 2));
-  console.log("  points_balance field:", balData.points_balance ?? "(absent)");
-  console.log("  points field:        ", balData.points ?? "(absent)");
+  console.log("Casino v2 response:", JSON.stringify(balData, null, 2));
+  console.log("  casino.tokens:", balData.casino?.tokens ?? "(absent)");
 
   // ── Step 2: Probe basic selection for casino fields ────────────────────────
   console.log("\n── User basic (GET /user?selections=basic) — checking for casino fields ──");
@@ -180,19 +179,81 @@ async function main() {
     if (JSON.stringify(d) !== baseState) console.log("*** DIFFERENT RESPONSE ***");
   }
 
-  // C: GET variants with game param
-  const getVariants = [
-    `/v2/user/casino/slots`,
-    `/v2/user/casino?game=slots`,
-    `/v2/user/casino?selections=slots`,
-  ];
-  for (const path of getVariants) {
-    console.log(`\n── GET https://api.torn.com${path} ──`);
-    const r = await fetch(`https://api.torn.com${path}&key=${apiKey}`);
-    const d = await r.json();
-    console.log("Response:", JSON.stringify(d, null, 2));
-    if (JSON.stringify(d) !== baseState) console.log("*** DIFFERENT RESPONSE ***");
-  }
+  // C: /v2/user/casino/slots — GET and POST with correct URL
+  console.log("\n── GET /v2/user/casino/slots (correct URL) ──");
+  const slotsGetRes = await fetch(`https://api.torn.com/v2/user/casino/slots?key=${apiKey}`);
+  const slotsGetData = await slotsGetRes.json();
+  console.log("Response:", JSON.stringify(slotsGetData, null, 2));
+  if (JSON.stringify(slotsGetData) !== baseState) console.log("*** DIFFERENT RESPONSE ***");
+
+  console.log("\n── POST /v2/user/casino/slots bet=10 (correct URL) ──");
+  const slotsPostR = await fetch(`https://api.torn.com/v2/user/casino/slots?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ bet: "10" }).toString(),
+  });
+  const slotsPostData = await slotsPostR.json();
+  console.log("Response:", JSON.stringify(slotsPostData, null, 2));
+  if (JSON.stringify(slotsPostData) !== baseState) console.log("*** DIFFERENT RESPONSE ***");
+
+  console.log("\n── POST /v2/user/casino/slots amount=10 (correct URL) ──");
+  const slotsPostR2 = await fetch(`https://api.torn.com/v2/user/casino/slots?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ amount: "10" }).toString(),
+  });
+  const slotsPostData2 = await slotsPostR2.json();
+  console.log("Response:", JSON.stringify(slotsPostData2, null, 2));
+  if (JSON.stringify(slotsPostData2) !== baseState) console.log("*** DIFFERENT RESPONSE ***");
+
+  // D: Try Authorization header auth on /v2/user/slots
+  console.log("\n── POST /v2/user/slots with Authorization header, body bet=10 ──");
+  const authHeaderRes = await fetch(`https://api.torn.com/v2/user/slots`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Authorization": `ApiKey ${apiKey}`,
+    },
+    body: new URLSearchParams({ bet: "10" }).toString(),
+  });
+  const authHeaderData = await authHeaderRes.json();
+  console.log("Response:", JSON.stringify(authHeaderData, null, 2));
+
+  // E: PATCH /v2/user/casino with bet=10
+  console.log("\n── PATCH /v2/user/casino bet=10 ──");
+  const patchRes = await fetch(`https://api.torn.com/v2/user/casino?key=${apiKey}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ bet: "10" }).toString(),
+  });
+  const patchData = await patchRes.json();
+  console.log("Response:", JSON.stringify(patchData, null, 2));
+
+  // F: POST /v2/user/slots with Authorization header + JSON body
+  console.log("\n── POST /v2/user/slots Authorization header + JSON {bet:10} ──");
+  const authJsonRes = await fetch(`https://api.torn.com/v2/user/slots`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `ApiKey ${apiKey}`,
+    },
+    body: JSON.stringify({ bet: 10 }),
+  });
+  const authJsonData = await authJsonRes.json();
+  console.log("Response:", JSON.stringify(authJsonData, null, 2));
+
+  // G: POST /v2/user/casino/slots Authorization header
+  console.log("\n── POST /v2/user/casino/slots Authorization header + bet=10 ──");
+  const authSlotsRes = await fetch(`https://api.torn.com/v2/user/casino/slots`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Authorization": `ApiKey ${apiKey}`,
+    },
+    body: new URLSearchParams({ bet: "10" }).toString(),
+  });
+  const authSlotsData = await authSlotsRes.json();
+  console.log("Response:", JSON.stringify(authSlotsData, null, 2));
 
   await pool.end();
 }

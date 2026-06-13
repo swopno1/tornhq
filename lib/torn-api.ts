@@ -190,10 +190,18 @@ export async function callTornApi<T>(
 
 /** User money/financial data from Torn API v1 (selections=money) */
 export interface TornUserMoney {
-  points_balance?: number;   // casino token balance
+  points_balance?: number;
   money_onhand?: number;
   vault_amount?: number;
   cayman_bank?: number;
+}
+
+/** Casino state from Torn API v2 GET /v2/user/casino */
+export interface TornV2CasinoResponse {
+  casino?: {
+    tokens: number;
+    streak: number;
+  };
 }
 
 export interface TornSlotsResult {
@@ -208,20 +216,19 @@ export interface TornSlotsResult {
 }
 
 /**
- * Fetches the player's casino token (points) balance.
- * Uses selections=money which includes points_balance.
- * Returns null on any error.
+ * Fetches the player's casino token balance via GET /v2/user/casino.
+ * Returns null on any error, 0 if the field is absent.
  */
 export async function fetchSlotsBalance(apiKey: string): Promise<number | null> {
   try {
-    // Use the canonical v1 base directly — avoid any TORN_API_BASE misconfiguration
-    const url = `https://api.torn.com/user?selections=money&key=${apiKey}`;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(
+      `https://api.torn.com/v2/user/casino?key=${apiKey}`,
+      { cache: "no-store" },
+    );
     if (!res.ok) return null;
-    const data: TornUserMoney & Partial<TornApiError> = await res.json();
+    const data: TornV2CasinoResponse & Partial<TornApiError> = await res.json();
     if (data.error) return null;
-    // Torn omits points_balance when user has no casino tokens — treat as 0
-    return typeof data.points_balance === "number" ? data.points_balance : 0;
+    return typeof data.casino?.tokens === "number" ? data.casino.tokens : 0;
   } catch {
     return null;
   }

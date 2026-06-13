@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
-import type { TornUserMoney, TornApiError } from "@/lib/torn-api";
+import type { TornV2CasinoResponse, TornApiError } from "@/lib/torn-api";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -23,7 +23,7 @@ export async function GET() {
 
   try {
     const res = await fetch(
-      `https://api.torn.com/user?selections=money&key=${apiKey}`,
+      `https://api.torn.com/v2/user/casino?key=${apiKey}`,
       { cache: "no-store" },
     );
 
@@ -34,7 +34,7 @@ export async function GET() {
       );
     }
 
-    const data: (TornUserMoney & Partial<TornApiError>) = await res.json();
+    const data: TornV2CasinoResponse & Partial<TornApiError> = await res.json();
 
     if (data.error) {
       return NextResponse.json(
@@ -43,9 +43,7 @@ export async function GET() {
       );
     }
 
-    // Torn omits points_balance (or returns null) when the user has never held casino tokens.
-    // Treat both as 0 — a missing field is not an error.
-    const balance = typeof data.points_balance === "number" ? data.points_balance : 0;
+    const balance = typeof data.casino?.tokens === "number" ? data.casino.tokens : 0;
 
     return NextResponse.json({ balance });
   } catch (err) {
