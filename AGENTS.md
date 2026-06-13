@@ -32,6 +32,10 @@ Browser → /api/torn (Next.js route)
          Redis cache       Torn API (rate-limited)
               ↓
          Prisma ORM → PostgreSQL (prisma+postgres://)
+
+Inngest cron (0 */6 * * *) → /api/inngest → takeStatSnapshot
+              ↓ (all users)
+         decrypt key → callTornApi(battlestats,profile) → StatSnapshot
 ```
 
 ## Prisma 7 — critical differences from Prisma 5/6
@@ -67,6 +71,38 @@ Browser → /api/torn (Next.js route)
 - `SidebarProvider` + `SidebarInset` wraps all dashboard pages; sidebar toggle uses `SidebarTrigger` in Topbar
 - Session access: server components use `getServerSession(authOptions)`; client components use `useSession()`
 
+## Hooks
+
+| Hook | Signature | Purpose |
+|------|-----------|---------|
+| `useCountdown` | `(unixTimestamp: number \| null \| undefined) → number` | Counts down from a Unix epoch timestamp, 1-second interval. Returns seconds remaining. |
+| `formatDuration` | `(seconds: number) → string` | "Xh Ym" / "Xm Ys" / "Xs" / "Ready" |
+| `useTornData<T>` | `(section, selections, opts?) → { data, loading, error, refetch }` | Fetches `/api/torn`, optional `refreshInterval` (ms), cleans up on unmount. |
+
+## Dashboard components (Week 2)
+
+| Component | File | Notes |
+|-----------|------|-------|
+| `StatBar` | `components/dashboard/StatBar.tsx` | Shows Energy/Nerve/Happy/Life. Takes `bar: TornBar` + `color` prop. Live "+1 in Xs" and "Full in Xh Ym" via `useCountdown`. |
+| `CooldownCard` | `components/dashboard/CooldownCard.tsx` | Drug/booster/medical seconds→expiry timestamp. Hospital/jail state from `status.until`. |
+| `TravelStatus` | `components/dashboard/TravelStatus.tsx` | Hidden when `status.state === "Okay"`. Shows destination + countdown when traveling/abroad. |
+| `DashboardClient` | `components/dashboard/DashboardClient.tsx` | `"use client"`, fetches `user/basic`, 60s auto-refresh. Renders skeleton on load, error panel on failure. |
+
+## Stats components (Week 2)
+
+| Component | File | Notes |
+|-----------|------|-------|
+| `StatGrowthChart` | `components/stats/StatGrowthChart.tsx` | `"use client"`, Recharts `ResponsiveContainer + LineChart`, 4 lines. Sorted ascending by `takenAt`. |
+| `SnapshotTable` | `components/stats/SnapshotTable.tsx` | Server component (no `"use client"`). Color-coded stat columns, `tabular-nums`. |
+| `SnapshotTrigger` | `components/stats/SnapshotTrigger.tsx` | `"use client"`, POST `/api/snapshots`, handles `skipped` JSON. Calls `router.refresh()` on success. |
+
+## Inngest (Week 2)
+
+- `inngest/client.ts` — `new Inngest({ id: "tornhq" })`
+- `inngest/functions.ts` — `takeStatSnapshot`: `triggers: [{ cron: "0 */6 * * *" }]`; 2-arg v4 API (`createFunction(config, handler)`)
+- `app/api/inngest/route.ts` — `serve({ client: inngest, functions: [takeStatSnapshot] })`, exports GET/POST/PUT
+- **Inngest v4 breaking change**: `createFunction` takes 2 args; triggers go inside the first config object (not a 3rd arg as in v3)
+
 ## Do not
 
 - Use `new PrismaClient()` without `{ accelerateUrl }` — it will throw a TS error
@@ -76,6 +112,8 @@ Browser → /api/torn (Next.js route)
 - Use emojis as icons — use Lucide React SVGs
 - Call Torn API directly from the browser — always go through `/api/torn`
 - Expose `apiKeyEnc` or the decrypted API key in any response or log
+- Use Inngest v3 3-arg `createFunction(opts, trigger, handler)` — v4 uses 2 args with triggers in config
+- Use Recharts `Tooltip.formatter` with `value.toLocaleString()` directly — value is a union type; guard with `typeof value === "number"` first
 
 ## Torn API
 

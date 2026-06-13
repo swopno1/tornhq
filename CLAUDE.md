@@ -18,7 +18,7 @@ Working directory: `/Users/mdamirhossain/ViveScript-Solutions/projects/torn-city
 | Database | `prisma+postgres://` (local Prisma Postgres via `npx prisma dev`) |
 | Cache | Upstash Redis (`@upstash/redis` + `@upstash/ratelimit`) |
 | Auth | NextAuth v4 — credentials provider + JWT, no Prisma adapter |
-| Background jobs | Inngest (`inngest` package, not yet wired) |
+| Background jobs | Inngest v4 — wired at `/api/inngest`, cron `takeStatSnapshot` every 6h |
 | Icons | Lucide React |
 
 ## Critical Prisma 7 Notes
@@ -41,13 +41,26 @@ Working directory: `/Users/mdamirhossain/ViveScript-Solutions/projects/torn-city
 ## Key Files
 
 ```
-lib/auth.ts          NextAuth options (credentials, JWT callbacks)
-lib/crypto.ts        AES-256-GCM encrypt/decrypt for API keys
-lib/cache.ts         Upstash Redis helpers + sliding-window rate limiter
-lib/torn-api.ts      Typed Torn API client (callTornApi, validateApiKey)
-lib/db.ts            Prisma singleton (accelerateUrl constructor)
-types/next-auth.d.ts Session type: adds tornId + userId
-app/api/torn/route.ts  Torn API proxy: auth check → rate limit → cache → fetch
+lib/auth.ts                      NextAuth options (credentials, JWT callbacks)
+lib/crypto.ts                    AES-256-GCM encrypt/decrypt for API keys
+lib/cache.ts                     Upstash Redis helpers + sliding-window rate limiter
+lib/torn-api.ts                  Typed Torn API client (callTornApi, validateApiKey)
+lib/db.ts                        Prisma singleton (accelerateUrl constructor)
+types/next-auth.d.ts             Session type: adds tornId + userId
+app/api/torn/route.ts            Torn API proxy: auth check → rate limit → cache → fetch
+app/api/snapshots/route.ts       GET list / POST create StatSnapshot (hourly dedup)
+app/api/inngest/route.ts         Inngest serve handler (GET/POST/PUT)
+inngest/client.ts                Inngest({ id: "tornhq" }) singleton
+inngest/functions.ts             takeStatSnapshot — cron 0 */6 * * *, iterates all users
+hooks/use-countdown.ts           useCountdown(unixTimestamp) + formatDuration()
+hooks/use-torn-data.ts           useTornData<T>(section, selections, { refreshInterval })
+components/dashboard/StatBar.tsx              Animated progress bar + live countdowns
+components/dashboard/CooldownCard.tsx         Drug/booster/medical + hospital/jail timers
+components/dashboard/TravelStatus.tsx         Travel destination card (hidden when home)
+components/dashboard/DashboardClient.tsx      Main dashboard — fetches user/basic, 60s refresh
+components/stats/StatGrowthChart.tsx          Recharts 4-line battle stats growth chart
+components/stats/SnapshotTable.tsx            Historical snapshot table (server component)
+components/stats/SnapshotTrigger.tsx          Manual "Take Snapshot" button + router.refresh()
 ```
 
 ## Design Tokens
@@ -89,8 +102,8 @@ TORN_API_BASE              # https://api.torn.com
 DATABASE_URL               # prisma+postgres://... (from .env via prisma.config.ts)
 UPSTASH_REDIS_REST_URL
 UPSTASH_REDIS_REST_TOKEN
-INNGEST_EVENT_KEY          # optional until Week 3
-INNGEST_SIGNING_KEY        # optional until Week 3
+INNGEST_EVENT_KEY          # required for production Inngest; local dev works without it
+INNGEST_SIGNING_KEY        # required for production Inngest; local dev works without it
 ```
 
 ## Dev Roadmap
@@ -98,8 +111,8 @@ INNGEST_SIGNING_KEY        # optional until Week 3
 | Week | Focus | Status |
 |------|-------|--------|
 | 1 | Foundation: auth, theme, API proxy, layout shell | ✅ Complete |
-| 2 | Core Dashboard: stat bars, cooldown timers, stat growth chart | ⏳ Next |
-| 3 | Market + Notifications: price tracker, alerts, notification drawer | ⏳ Pending |
+| 2 | Core Dashboard: stat bars, cooldown timers, Inngest snapshots, stat growth chart | ✅ Complete |
+| 3 | Market + Notifications: price tracker, alerts, notification drawer | ⏳ Next |
 | 4 | Faction + Polish: member activity, responsiveness, skeletons | ⏳ Pending |
 
 ## Coding Conventions
