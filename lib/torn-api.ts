@@ -77,6 +77,18 @@ export interface TornPersonalStats {
   xp: number;
 }
 
+export interface TornBattleStats {
+  player_id: number;
+  name: string;
+  level: number;
+  xp: number;
+  strength: number;
+  defense: number;
+  speed: number;
+  dexterity: number;
+  total: number;
+}
+
 /**
  * Makes a typed request to the Torn API.
  * The API key is appended server-side — never pass it from the client.
