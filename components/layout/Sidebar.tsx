@@ -29,14 +29,14 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/stats", label: "Stats", icon: TrendingUp },
-  { href: "/market", label: "Market", icon: ShoppingCart },
-  { href: "/faction", label: "Faction", icon: Users },
-  { href: "/travel", label: "Travel", icon: Plane },
+  { href: "/dashboard/stats", label: "Stats", icon: TrendingUp },
+  { href: "/dashboard/market", label: "Market", icon: ShoppingCart },
+  { href: "/dashboard/faction", label: "Faction", icon: Users },
+  { href: "/dashboard/travel", label: "Travel", icon: Plane },
 ] as const;
 
 const secondaryItems = [
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ] as const;
 
 export function AppSidebar() {

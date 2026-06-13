@@ -1,3 +1,5 @@
+import "server-only";
+
 const BASE = process.env.TORN_API_BASE ?? "https://api.torn.com";
 
 export interface TornApiError {

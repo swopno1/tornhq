@@ -14,10 +14,10 @@ import { useAlerts } from "@/hooks/use-alerts";
 
 const items = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/stats", label: "Stats", icon: TrendingUp },
-  { href: "/market", label: "Market", icon: ShoppingCart },
-  { href: "/faction", label: "Faction", icon: Users },
-  { href: "/alerts", label: "Alerts", icon: Bell },
+  { href: "/dashboard/stats", label: "Stats", icon: TrendingUp },
+  { href: "/dashboard/market", label: "Market", icon: ShoppingCart },
+  { href: "/dashboard/faction", label: "Faction", icon: Users },
+  { href: "/dashboard/alerts", label: "Alerts", icon: Bell },
 ] as const;
 
 export function BottomNav() {
@@ -30,7 +30,7 @@ export function BottomNav() {
         const isActive =
           pathname === href ||
           (href !== "/dashboard" && pathname.startsWith(href));
-        const isAlerts = href === "/alerts";
+        const isAlerts = href === "/dashboard/alerts";
 
         return (
           <Link
