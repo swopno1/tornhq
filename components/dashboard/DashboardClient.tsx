@@ -72,46 +72,50 @@ export function DashboardClient() {
             {(data.faction as { faction_id: number; faction_name: string }).faction_name}
           </Badge>
         )}
-        <Badge
-          variant="outline"
-          className={
-            lastAction.status === "Online"
-              ? "border-neon-green/30 text-neon-green"
-              : lastAction.status === "Idle"
-              ? "border-neon-amber/30 text-neon-amber"
-              : "border-border text-muted-foreground"
-          }
-        >
-          <span className={
-            `mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${
-              lastAction.status === "Online" ? "bg-neon-green" :
-              lastAction.status === "Idle" ? "bg-neon-amber" : "bg-muted-foreground"
-            }`
-          } />
-          {lastAction.status}
-        </Badge>
+        {lastAction != null && (
+          <Badge
+            variant="outline"
+            className={
+              lastAction.status === "Online"
+                ? "border-neon-green/30 text-neon-green"
+                : lastAction.status === "Idle"
+                ? "border-neon-amber/30 text-neon-amber"
+                : "border-border text-muted-foreground"
+            }
+          >
+            <span className={
+              `mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${
+                lastAction.status === "Online" ? "bg-neon-green" :
+                lastAction.status === "Idle" ? "bg-neon-amber" : "bg-muted-foreground"
+              }`
+            } />
+            {lastAction.status}
+          </Badge>
+        )}
       </div>
 
       {/* Travel banner — only shown when traveling/abroad */}
-      <TravelStatus travel={data.travel} status={data.status} />
+      {data.status != null && <TravelStatus travel={data.travel ?? null} status={data.status} />}
 
       {/* Stat bars grid */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <StatBar label="Energy"    bar={data.energy} color="cyan"  />
-        <StatBar label="Nerve"     bar={data.nerve}  color="red"   />
-        <StatBar label="Happiness" bar={data.happy}  color="amber" />
-        <StatBar label="Life"      bar={data.life}   color="green" />
+        {data.energy != null && <StatBar label="Energy"    bar={data.energy} color="cyan"  />}
+        {data.nerve  != null && <StatBar label="Nerve"     bar={data.nerve}  color="red"   />}
+        {data.happy  != null && <StatBar label="Happiness" bar={data.happy}  color="amber" />}
+        {data.life   != null && <StatBar label="Life"      bar={data.life}   color="green" />}
       </div>
 
       {/* Cooldowns */}
-      <CooldownCard
-        cooldowns={data.cooldowns}
-        statusState={data.status.state}
-        statusUntil={data.status.until}
-      />
+      {data.cooldowns != null && data.status != null && (
+        <CooldownCard
+          cooldowns={data.cooldowns}
+          statusState={data.status.state}
+          statusUntil={data.status.until}
+        />
+      )}
 
       {/* Status details */}
-      {data.status.description && data.status.state !== "Okay" && (
+      {data.status?.description && data.status.state !== "Okay" && (
         <Card className="border-destructive/20 bg-destructive/5">
           <CardHeader className="pb-1">
             <CardTitle className="font-heading text-xs font-bold uppercase tracking-widest text-destructive">
