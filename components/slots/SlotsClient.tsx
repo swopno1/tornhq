@@ -170,8 +170,8 @@ export function SlotsClient() {
       return;
     }
 
-    setJobs((prev) => [{ ...data, logs: [] }, ...prev]);
     setShowForm(false);
+    fetchJobs();
     setBetAmount("100");
     setIntervalSecs("10");
     setTotalRuns("50");
