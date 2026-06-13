@@ -114,6 +114,38 @@ export interface TornItemsResponse {
   items: Record<string, TornItem>;
 }
 
+export interface TornFactionMember {
+  name: string;
+  level: number;
+  days_in_faction: number;
+  last_action: TornLastAction;
+  status: TornStatus;
+  position: string;
+  revivable: number;
+}
+
+export interface TornFactionChain {
+  current: number;
+  max: number;
+  timeout: number;
+  cooldown: number;
+  modifier: number;
+  start: number;
+}
+
+export interface TornFactionData {
+  ID: number;
+  name: string;
+  tag: string;
+  leader: number;
+  respect: number;
+  age: number;
+  capacity: number;
+  best_chain: number;
+  chain: TornFactionChain;
+  members: Record<string, TornFactionMember>;
+}
+
 /**
  * Makes a typed request to the Torn API.
  * The API key is appended server-side — never pass it from the client.

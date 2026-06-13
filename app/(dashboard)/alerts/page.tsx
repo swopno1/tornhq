@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Zap, Target, Plane, Timer, Link2, Bell } from "lucide-react";
+import { AlertsActions } from "@/components/alerts/AlertsActions";
 
 export const metadata: Metadata = { title: "Alerts" };
 
@@ -81,11 +82,14 @@ export default async function AlertsPage() {
             All notifications from market price changes and game events
           </p>
         </div>
-        {unread > 0 && (
-          <Badge className="bg-neon-amber/20 font-mono text-xs text-neon-amber border-neon-amber/30">
-            {unread} unread
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {unread > 0 && (
+            <Badge className="border-neon-amber/30 bg-neon-amber/20 font-mono text-xs text-neon-amber">
+              {unread} unread
+            </Badge>
+          )}
+          <AlertsActions hasUnread={unread > 0} />
+        </div>
       </div>
 
       <Card className="card-glow border-border bg-card">

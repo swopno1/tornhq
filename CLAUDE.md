@@ -68,6 +68,11 @@ components/market/PriceSparkline.tsx         Mini Recharts line chart (40px heig
 components/market/AddItemForm.tsx            Inline add-by-Torn-ID form with optional alert threshold
 components/market/WatchedItemsTable.tsx      Self-fetching table with sparklines, price delta %, remove button
 components/alerts/AlertDrawer.tsx            Sheet drawer — alert list, relative timestamps, mark-all-read
+components/alerts/AlertsActions.tsx         "Mark all read" client button (used on /alerts page)
+components/faction/FactionClient.tsx        "use client" — useTornData faction/basic,chain,members, 2min refresh
+components/faction/FactionHeader.tsx        Faction name/tag/respect/capacity/best-chain header card
+components/faction/ChainStatus.tsx          Active chain countdown (reuses useCountdown), cooldown state
+components/faction/MemberTable.tsx          Sortable member table (activity/level/last_action/days columns)
 ```
 
 ## Design Tokens
@@ -120,7 +125,7 @@ INNGEST_SIGNING_KEY        # required for production Inngest; local dev works wi
 | 1 | Foundation: auth, theme, API proxy, layout shell | ✅ Complete |
 | 2 | Core Dashboard: stat bars, cooldown timers, Inngest snapshots, stat growth chart | ✅ Complete |
 | 3 | Market + Notifications: price tracker, alerts, notification drawer | ✅ Complete |
-| 4 | Faction + Polish: member activity, responsiveness, skeletons | ⏳ Next |
+| 4 | Faction + Polish: member activity, chain status, travel/settings pages, alert polish | ✅ Complete |
 
 ## Coding Conventions
 
