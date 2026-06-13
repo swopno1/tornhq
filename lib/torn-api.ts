@@ -146,20 +146,38 @@ export interface TornFactionData {
   members: Record<string, TornFactionMember>;
 }
 
+export interface TornBazaarItem {
+  ID: number;
+  name: string;
+  type: string;
+  quantity: number;
+  price: number;
+  market_price: number;
+}
+
+export interface TornUserBazaarResponse {
+  bazaar: TornBazaarItem[] | null;
+}
+
 /**
  * Makes a typed request to the Torn API.
  * The API key is appended server-side — never pass it from the client.
+ * Pass revalidate (seconds) to use Next.js ISR caching instead of no-store.
  */
 export async function callTornApi<T>(
   path: string,
   apiKey: string,
+  options?: { revalidate?: number },
 ): Promise<T & Partial<TornApiError>> {
   const separator = path.includes("?") ? "&" : "?";
   const url = `${BASE}${path}${separator}key=${apiKey}`;
 
-  const res = await fetch(url, {
-    cache: "no-store",
-  });
+  const res = await fetch(
+    url,
+    options?.revalidate !== undefined
+      ? { next: { revalidate: options.revalidate } }
+      : { cache: "no-store" },
+  );
 
   if (!res.ok) {
     throw new Error(`Torn API responded with HTTP ${res.status}`);
