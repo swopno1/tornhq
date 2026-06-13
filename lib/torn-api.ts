@@ -242,7 +242,7 @@ export async function playSlots(
 ): Promise<TornSlotsResult & Partial<TornApiError>> {
   // v2 always uses the canonical Torn API host — never derive from TORN_API_BASE
   // which may point to a v1-specific proxy and would produce an invalid v2 URL.
-  const body = new URLSearchParams({ bet: betAmount.toString() });
+  const body = new URLSearchParams({ amount: String(betAmount) });
 
   const res = await fetch(`https://api.torn.com/v2/user/slots?key=${apiKey}`, {
     method: "POST",

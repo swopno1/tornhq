@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
-import { fetchSlotsBalance } from "@/lib/torn-api";
+import type { TornUserMoney, TornApiError } from "@/lib/torn-api";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -20,14 +20,41 @@ export async function GET() {
   }
 
   const apiKey = decrypt(user.apiKeyEnc);
-  const balance = await fetchSlotsBalance(apiKey);
 
-  if (balance === null) {
+  try {
+    const res = await fetch(
+      `https://api.torn.com/user?selections=money&key=${apiKey}`,
+      { cache: "no-store" },
+    );
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: `Torn API HTTP error: ${res.status}` },
+        { status: 400 },
+      );
+    }
+
+    const data: (TornUserMoney & Partial<TornApiError>) = await res.json();
+
+    if (data.error) {
+      return NextResponse.json(
+        { error: `Torn API error [${data.error.code}]: ${data.error.error}` },
+        { status: 400 },
+      );
+    }
+
+    if (typeof data.points_balance !== "number") {
+      return NextResponse.json(
+        { error: "points_balance not returned — API key may need Limited access or higher." },
+        { status: 400 },
+      );
+    }
+
+    return NextResponse.json({ balance: data.points_balance });
+  } catch (err) {
     return NextResponse.json(
-      { error: "Could not fetch token balance — ensure your API key has Limited access or higher." },
-      { status: 400 },
+      { error: `Network error: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 },
     );
   }
-
-  return NextResponse.json({ balance });
 }
