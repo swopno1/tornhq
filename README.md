@@ -1,315 +1,290 @@
-Torn City Companion App — Full Design & Architecture Plan
-Design System
-Style: Dark Mode (OLED) — Cyberpunk/Tactical
-The design system search matched Dark Mode (OLED) with the cyberpunk/HUD aesthetic — exactly right for a Torn companion. WCAG AAA compliant, OLED-optimized.
+# TornHQ
 
-Color Palette (adjusted for dark OLED surfaces):
+> **GitHub:** https://github.com/swopno1/tornhq
 
-Role Hex Usage
-Background #000000 OLED true black base
-Surface #0A0A0F Cards, panels
-Surface-2 #12121A Elevated cards, modals
-Border #1E2A3A Dividers, card borders
-Primary #1E40AF Primary actions, links
-Secondary #3B82F6 Hover states, badges
-Accent/CTA #D97706 Alerts, energy bars, highlights
-Neon Cyan #06B6D4 Stat values, live data
-Neon Green #10B981 Positive values, online status
-Danger #DC2626 Attacks, nerve, destructive
-Text-Primary #F1F5F9 Headings, labels
-Text-Muted #64748B Secondary labels
-Typography:
+A dark-mode, cyberpunk-aesthetic web application that enhances the experience of [Torn](https://www.torn.com) players — providing advanced analytics, planning tools, and quality-of-life features through the Torn public API.
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@700;900&display=swap');
+---
 
-/_ Headings / stat values _/ font-family: 'Orbitron', monospace;
-/_ Body / data / tables _/ font-family: 'JetBrains Mono', monospace;
-Key Effects:
+## Features
 
-Neon glow on stat values: text-shadow: 0 0 8px #06B6D4, 0 0 20px #06B6D480
-Card borders with subtle glow: border: 1px solid #1E2A3A; box-shadow: 0 0 12px #1E40AF20
-Progress bars with animated fill + glow (energy, nerve, happiness)
-Micro-transitions: 150–200ms ease-out only
-Layout Architecture
+### MVP (Week 1–4)
+- **Secure API key auth** — AES-256-GCM encrypted storage, never exposed client-side
+- **Player dashboard** — Energy, Nerve, Happiness, Life bars with live countdowns
+- **Stat history** — Periodic snapshots with growth charts (Strength, Defense, Speed, Dexterity)
+- **Market tracker** — Watch items, view price history, get price alerts
+- **Custom notifications** — Energy ready, travel landed, chain active, price threshold alerts
+- **Faction overview** — Member activity, last-action status, chain participation
 
-┌─────────────────────────────────────────────────────────────────┐
-│ TOPBAR (sticky, h-14) │
-│ [Logo] [Player: FactionName | $Cash | Lvl 42] [🔔] [Avatar] │
-├──────────────┬──────────────────────────────────────────────────┤
-│ SIDEBAR │ MAIN CONTENT AREA │
-│ (w-56, │ │
-│ collapsible │ ┌─────────┬─────────┬─────────┬─────────┐ │
-│ on mobile) │ │ Energy │ Nerve │ Happy │Travel │ │
-│ │ │ ██████░ │ ████░░ │ ████░░ │ Status │ │
-│ • Dashboard │ │ 180/210 │ 21/25 │ 95/100 │ UK→USA │ │
-│ • Stats │ └─────────┴─────────┴─────────┴─────────┘ │
-│ • Market │ │
-│ • Faction │ ┌──────────────────┐ ┌───────────────────┐ │
-│ • Travel │ │ STAT GROWTH │ │ NOTIFICATIONS │ │
-│ • Crimes │ │ [Line Chart] │ │ ⚠ Energy Ready │ │
-│ • Settings │ │ Str/Def/Spd/Dex │ │ ✓ Travel Landed │ │
-│ │ └──────────────────┘ │ ⚡ Chain Active │ │
-│ ────────── │ └───────────────────┘ │
-│ API Status │ ┌──────────────────────────────────────────┐ │
-│ ● Connected │ │ MARKET PRICE TRACKER │ │
-│ │ │ Item | Price | 24h Δ | 7d Chart │ │
-└──────────────┴──────────────────────────────────────────────────┘
+### Phase 2
+- Crime profit calculator & risk/reward analysis
+- Market arbitrage finder
+- Attack log analysis
+- Training ROI optimizer
+- Faction war preparation tools
 
-Mobile: Sidebar collapses to bottom nav (5 items: Dashboard/Stats/Market/Faction/Alerts)
-Folder Structure
+### Long-term
+- Shared faction dashboards
+- PWA + push notifications
+- AI-assisted insights (training recommendations, market forecasting)
 
+---
+
+## Architecture
+
+```
+Browser (Next.js App Router)
+        │
+        ▼
+  [/api/torn proxy]  ──→  Redis (Upstash)  ──→  Torn API
+        │                  (5-min cache)         (≤80 req/min)
+        │
+  [Prisma ORM]  ──→  PostgreSQL (Prisma Postgres / Neon / Supabase)
+        │             (users, snapshots, prices, alerts)
+        │
+  [Inngest Jobs]
+    ├─ stat-snapshot (every 6h per active user)
+    ├─ market-poll   (every 15min for watched items)
+    └─ alert-eval    (every 5min — check thresholds)
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 + TypeScript |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| ORM | Prisma 7 |
+| Database | PostgreSQL (Prisma Postgres / Neon / Supabase) |
+| Cache | Redis via Upstash |
+| Auth | NextAuth v4 (credentials provider + JWT) |
+| Background jobs | Inngest |
+| Hosting | Vercel + managed DB/Redis |
+
+---
+
+## Project Structure
+
+```
 torn-city/
 ├── app/
-│ ├── (auth)/
-│ │ └── login/page.tsx # API key entry + validation
-│ ├── (dashboard)/
-│ │ ├── layout.tsx # Sidebar + topbar shell
-│ │ ├── page.tsx # Main dashboard
-│ │ ├── stats/page.tsx # Stat history + growth charts
-│ │ ├── market/page.tsx # Item price tracker
-│ │ ├── faction/page.tsx # Faction overview
-│ │ ├── travel/page.tsx # Travel timers + crime tools
-│ │ └── settings/page.tsx # API key, notifications, prefs
-│ └── api/
-│ ├── torn/route.ts # Proxy + cache layer for Torn API
-│ ├── snapshots/route.ts # Stat snapshot scheduler
-│ └── notifications/route.ts # Alert evaluation
+│   ├── page.tsx                    # Root redirect (auth-aware)
+│   ├── globals.css                 # OLED dark + cyberpunk design tokens
+│   ├── layout.tsx                  # Root layout (fonts, dark class)
+│   ├── (auth)/
+│   │   └── login/page.tsx          # API key entry + validation
+│   ├── (dashboard)/
+│   │   ├── layout.tsx              # Auth guard + Sidebar + Topbar shell
+│   │   ├── dashboard/page.tsx      # Main dashboard
+│   │   ├── stats/page.tsx          # Stat history + growth charts
+│   │   ├── market/page.tsx         # Item price tracker
+│   │   ├── faction/page.tsx        # Faction overview
+│   │   ├── travel/page.tsx         # Travel timers + crime tools
+│   │   └── settings/page.tsx       # API key, notifications, prefs
+│   └── api/
+│       ├── auth/[...nextauth]/     # NextAuth handler
+│       ├── torn/route.ts           # Proxy + cache layer for Torn API
+│       ├── snapshots/route.ts      # Stat snapshot scheduler
+│       └── notifications/route.ts  # Alert evaluation
 ├── components/
-│ ├── layout/
-│ │ ├── Sidebar.tsx
-│ │ ├── Topbar.tsx
-│ │ └── BottomNav.tsx # Mobile only
-│ ├── dashboard/
-│ │ ├── StatBar.tsx # Energy/Nerve/Happy bars
-│ │ ├── CooldownCard.tsx
-│ │ └── TravelStatus.tsx
-│ ├── stats/
-│ │ ├── StatGrowthChart.tsx # Recharts line chart
-│ │ └── SnapshotTable.tsx
-│ ├── market/
-│ │ ├── PriceTrackerTable.tsx
-│ │ └── PriceSparkline.tsx
-│ ├── faction/
-│ │ ├── MemberActivityTable.tsx
-│ │ └── ChainStatus.tsx
-│ └── ui/ # shadcn/ui components
+│   ├── layout/
+│   │   ├── Sidebar.tsx             # Collapsible sidebar (shadcn)
+│   │   ├── Topbar.tsx              # Top navigation bar
+│   │   └── BottomNav.tsx           # Mobile bottom navigation (5 items)
+│   ├── dashboard/
+│   │   ├── StatBar.tsx             # Energy/Nerve/Happy animated bars
+│   │   ├── CooldownCard.tsx        # Hospital/jail/drug timers
+│   │   └── TravelStatus.tsx        # Travel destination + time left
+│   ├── stats/
+│   │   ├── StatGrowthChart.tsx     # Recharts line chart
+│   │   └── SnapshotTable.tsx       # Historical snapshot table
+│   ├── market/
+│   │   ├── PriceTrackerTable.tsx   # Sortable watched-items table
+│   │   └── PriceSparkline.tsx      # 7-day sparkline per item
+│   ├── faction/
+│   │   ├── MemberActivityTable.tsx # Member last-action, status
+│   │   └── ChainStatus.tsx         # Chain timer + participation
+│   └── ui/                         # shadcn/ui generated components
 ├── lib/
-│ ├── torn-api.ts # Typed Torn API client
-│ ├── cache.ts # Redis (Upstash) helpers
-│ ├── crypto.ts # AES-256 API key encryption
-│ └── db.ts # Prisma client
+│   ├── auth.ts                     # NextAuth options (credentials provider)
+│   ├── torn-api.ts                 # Typed Torn API client
+│   ├── cache.ts                    # Upstash Redis helpers + rate limiter
+│   ├── crypto.ts                   # AES-256-GCM encrypt/decrypt
+│   └── db.ts                       # Prisma client singleton
+├── types/
+│   └── next-auth.d.ts              # Session type extensions (tornId, userId)
 ├── prisma/
-│ └── schema.prisma
-├── .env.local
-└── next.config.ts
-Initial Database Schema
+│   └── schema.prisma               # Database models
+├── prisma.config.ts                # Prisma 7 config (DB URL, migrations path)
+└── .env.local                      # Environment variables (see below)
+```
 
-// prisma/schema.prisma
+---
 
-model User {
-id String @id @default(cuid())
-tornId Int @unique
-apiKeyEnc String // AES-256 encrypted
-createdAt DateTime @default(now())
-snapshots StatSnapshot[]
-alerts Alert[]
-watchedItems WatchedItem[]
-}
+## Design System
 
-model StatSnapshot {
-id String @id @default(cuid())
-userId String
-user User @relation(fields: [userId], references: [id])
-strength Int
-defense Int
-speed Int
-dexterity Int
-total Int
-level Int
-xp Int
-takenAt DateTime @default(now())
-@@index([userId, takenAt])
-}
+### Style: Dark Mode OLED — Cyberpunk/Tactical
 
-model MarketItem {
-id String @id @default(cuid())
-tornItemId Int @unique
-name String
-category String
-priceHistory PricePoint[]
-watchers WatchedItem[]
-}
+| Token | Hex | OKLCH | Usage |
+|-------|-----|-------|-------|
+| Background | `#000000` | `oklch(0 0 0)` | OLED true black base |
+| Surface | `#0D0D14` | `oklch(0.08 0.008 255)` | Cards, panels |
+| Surface-2 | `#111118` | `oklch(0.12 0.01 255)` | Elevated cards, modals |
+| Border | `#1E2A3A` | `oklch(0.22 0.03 240)` | Dividers, card borders |
+| Primary | `#2B4FCC` | `oklch(0.45 0.17 265)` | Buttons, links |
+| Accent/CTA | `#D97706` | `oklch(0.65 0.15 65)` | Energy bars, highlights |
+| Neon Cyan | `#06B6D4` | `oklch(0.75 0.15 200)` | Stat values, live data |
+| Neon Green | `#10B981` | `oklch(0.72 0.17 160)` | Positive Δ, online status |
+| Danger | `#DC2626` | `oklch(0.55 0.22 25)` | Nerve, attacks, errors |
+| Text | `#F1F5F9` | `oklch(0.96 0.005 240)` | Headings, labels |
+| Text Muted | `#64748B` | `oklch(0.55 0.04 248)` | Secondary labels |
 
-model PricePoint {
-id String @id @default(cuid())
-itemId String
-item MarketItem @relation(fields: [itemId], references: [id])
-averagePrice Int
-lowestPrice Int
-volume Int
-recordedAt DateTime @default(now())
-@@index([itemId, recordedAt])
-}
+### Typography
 
-model WatchedItem {
-userId String
-itemId String
-alertBelow Int?
-alertAbove Int?
-user User @relation(fields: [userId], references: [id])
-item MarketItem @relation(fields: [itemId], references: [id])
-@@id([userId, itemId])
-}
+```css
+/* Headings / stat values */
+font-family: 'Orbitron', monospace;   /* weights: 700, 900 */
 
-model Alert {
-id String @id @default(cuid())
-userId String
-user User @relation(fields: [userId], references: [id])
-type String // energy_ready | travel_landed | chain_alert | price_alert
-payload Json
-readAt DateTime?
-createdAt DateTime @default(now())
-}
-Environment Variables
+/* Body / data / tables */
+font-family: 'JetBrains Mono', monospace;  /* weights: 400, 500 */
+```
 
-# .env.local
+Google Fonts import:
+```
+https://fonts.google.com/share?selection.family=JetBrains+Mono:wght@400;500|Orbitron:wght@700;900
+```
 
-# App
+---
 
-NEXTAUTH_SECRET=<32-byte-random>
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- A [Torn API key](https://www.torn.com/preferences.php#tab=api) (public access, no special permissions needed for basic player data)
+- PostgreSQL database (local Prisma Postgres, Neon, or Supabase)
+- Upstash Redis instance
+
+### Environment Variables
+
+Create `.env.local` with:
+
+```bash
+# NextAuth
+NEXTAUTH_SECRET=                     # openssl rand -hex 32
 NEXTAUTH_URL=http://localhost:3000
-API_KEY_ENCRYPTION_SECRET=<32-byte-hex> # AES-256 key for encrypting Torn API keys
 
-# Torn API
+# AES-256 key for Torn API key encryption (must be exactly 64 hex chars)
+API_KEY_ENCRYPTION_SECRET=           # openssl rand -hex 32
 
+# Torn API base URL
 TORN_API_BASE=https://api.torn.com
 
-# Database (Neon / Supabase PostgreSQL)
-
-DATABASE_URL=postgresql://user:pass@host/tornapp?sslmode=require
+# Database (Prisma uses prisma.config.ts — set DATABASE_URL in .env)
+DATABASE_URL=prisma+postgres://...   # or postgresql://...
 
 # Redis (Upstash)
-
 UPSTASH_REDIS_REST_URL=https://...
 UPSTASH_REDIS_REST_TOKEN=...
 
-# Background Jobs (Inngest)
+# Background Jobs (Inngest) — optional for Week 1
+INNGEST_EVENT_KEY=
+INNGEST_SIGNING_KEY=
+```
 
-INNGEST_EVENT_KEY=...
-INNGEST_SIGNING_KEY=...
-Setup Commands
+Generate secrets:
+```bash
+openssl rand -hex 32   # use once for NEXTAUTH_SECRET
+openssl rand -hex 32   # use again for API_KEY_ENCRYPTION_SECRET
+```
 
-# 1. Scaffold the project
+### Installation
 
-npx create-next-app@latest torn-city --typescript --tailwind --app --src-dir=false
-cd torn-city
+```bash
+# 1. Install dependencies (already done if you ran npm install)
+npm install
 
-# 2. Install core dependencies
+# 2. Install missing shadcn/ui components
+npx shadcn@latest add label avatar dropdown-menu
 
-npm install prisma @prisma/client @upstash/redis @upstash/ratelimit \
- next-auth @auth/prisma-adapter \
- recharts \
- inngest \
- zod \
- @t3-oss/env-nextjs
-
-# 3. Install shadcn/ui
-
-npx shadcn@latest init
-npx shadcn@latest add card badge button table progress tooltip sheet sidebar
-
-# 4. Prisma setup
-
-npx prisma init
-
-# (edit schema.prisma with schema above)
-
-npx prisma generate
+# 3. Push database schema
 npx prisma db push
 
-# 5. Install useful skills (see below)
+# 4. Generate Prisma client
+npx prisma generate
 
-npx skills add secondsky/claude-skills@tailwind-v4-shadcn -g -y
-npx skills add sickn33/antigravity-awesome-skills@nextjs-supabase-auth -g -y
-npx skills add antvis/chart-visualization-skills@chart-visualization -g -y
-npx skills add aj-geddes/useful-ai-prompts@api-rate-limiting -g -y
-Recommended Skills to Install
-Skill Installs What It Adds
-secondsky/claude-skills@tailwind-v4-shadcn 5.5K Tailwind v4 + shadcn/ui patterns — use when building any component
-sickn33/antigravity-awesome-skills@nextjs-supabase-auth 5.4K Next.js + Supabase auth flow — use for API key auth setup
-antvis/chart-visualization-skills@chart-visualization 3.8K Chart type selection + Recharts implementation — use for stat history & market charts
-bytedance/deer-flow@chart-visualization 1.6K Advanced data viz patterns — supplements the above
-giuseppe-trisciuoglio/developer-kit@tailwind-design-system 1.4K Tailwind design token system — use when building the theme
-jwynia/agent-skills@shadcn-layouts 408 shadcn dashboard layouts — jump-start the sidebar/topbar shell
-aj-geddes/useful-ai-prompts@api-rate-limiting 500 Rate limiting patterns — critical for respecting Torn's API limits
-secondsky/claude-skills@api-rate-limiting 267 Next.js-specific rate limiting — use on /api/torn proxy route
-Prioritized Feature Matrix
-Feature Impact Effort Phase
-API key auth + secure storage Critical Low MVP
-Player dashboard (bars + cooldowns) Critical Low MVP
-Stat snapshot + history chart High Medium MVP
-Market price tracker (watched items) High Medium MVP
-Custom notifications (energy/travel/chain) High Medium MVP
-Faction member activity table Medium Medium MVP
-Travel timer + destination helper Medium Low MVP
-Crime profit calculator Medium Medium Phase 2
-Market arbitrage finder High High Phase 2
-Attack log analysis Medium High Phase 2
-Training ROI optimizer High High Phase 2
-Faction war tools Medium High Phase 2
-Shared faction dashboards Medium High Long-term
-PWA + push notifications High High Long-term
-AI-assisted insights Medium Very High Long-term
-4-Week MVP Roadmap
-Week 1 — Foundation
+# 5. Start dev server
+npm run dev
+```
 
-Project scaffold (Next.js 15, Prisma, Upstash Redis, shadcn/ui)
-Design tokens: OLED dark theme, Orbitron/JetBrains Mono, color variables
-API key entry page + AES-256 encrypted storage in DB
-/api/torn proxy route with Redis caching (5-min TTL) + Upstash rate limiter
-Sidebar + topbar layout shell, bottom nav for mobile
-Week 2 — Core Dashboard
+Visit `http://localhost:3000` — you'll be redirected to `/login`.
 
-Player status cards (Energy, Nerve, Happiness, Life bars with glow)
-Cooldown timers (hospital, jail, travel) with live countdown
-Travel status card
-Stat snapshot cron (Inngest, every 6h) storing to StatSnapshot
-Stat growth line chart (Recharts) — Strength/Defense/Speed/Dex over time
-Week 3 — Market + Notifications
+---
 
-Watched items list with add/remove
-Market price polling (Inngest, every 15min) storing PricePoint
-Price history sparklines per item, sortable table
-Alert evaluation job: energy ready, travel landed, chain active, price threshold
-In-app notification bell + alert drawer (shadcn Sheet)
-Week 4 — Faction + Polish
+## Security
 
-Faction member list: last action, status, stats contribution
-Chain participation indicator
-Mobile responsiveness pass (375px → 1440px)
-Performance audit (Redis cache hit rate, API call budget)
-Error states, empty states, loading skeletons throughout
-API, Security & Rate-Limit Considerations
-Concern Strategy
-Torn API key storage AES-256-GCM encrypted at rest; never logged or exposed in responses
-Rate limits Torn allows ~100 req/min per key. Redis cache all responses with 5-min TTL; deduplicate concurrent requests
-Background polling Inngest jobs run server-side using the user's stored key — never client-side
-Key validation Validate key on entry by calling /user?selections=basic — store only on success
-CORS /api/torn proxy is internal only — no CORS headers needed
-ToS compliance Cache aggressively, no reselling of data, respect Torn's API ToS (no automated gameplay)
-Architecture Diagram
+| Concern | Strategy |
+|---------|----------|
+| API key storage | AES-256-GCM encrypted at rest; key never logged or exposed in responses |
+| Rate limiting | Upstash sliding window (80 req/60s per user); Redis cache (5-min TTL) deduplicates requests |
+| Background polling | Inngest jobs run server-side — API key is never sent to the browser |
+| Key validation | Key is validated against Torn API before being stored |
+| Session | JWT strategy, no database sessions |
+| ToS compliance | No automated gameplay; data cached aggressively; no resale of API data |
 
-Browser (Next.js App Router)
-│
-▼
-[/api/torn proxy] ──→ Redis (Upstash) ──→ Torn API
-│ (5-min cache) (rate-limited)
-│
-[Prisma ORM] ──→ PostgreSQL (Neon/Supabase)
-│ (users, snapshots, prices, alerts)
-│
-[Inngest Jobs]
-├─ stat-snapshot (every 6h per active user)
-├─ market-poll (every 15min for watched items)
-└─ alert-eval (every 5min — check thresholds)
-The design system, folder structure, schema, and skill installations above give you a ready-to-build foundation. Start with Week 1 (scaffold + auth + proxy), then proceed in order — each week produces a shippable increment. The biggest early win is the Torn API proxy with Redis caching: get that right first and everything downstream is fast and cost-efficient.
+---
+
+## Development Roadmap
+
+| Week | Focus | Status |
+|------|-------|--------|
+| 1 | Foundation: auth, design tokens, API proxy, layout shell | ✅ In Progress |
+| 2 | Core Dashboard: stat bars, cooldown timers, stat growth chart | ⏳ Pending |
+| 3 | Market + Notifications: price tracker, alerts, notification drawer | ⏳ Pending |
+| 4 | Faction + Polish: member activity, responsiveness, skeletons | ⏳ Pending |
+
+---
+
+## Feature Priority Matrix
+
+| Feature | Impact | Effort | Phase |
+|---------|--------|--------|-------|
+| API key auth + secure storage | Critical | Low | MVP |
+| Player dashboard (bars + cooldowns) | Critical | Low | MVP |
+| Stat snapshot + history chart | High | Medium | MVP |
+| Market price tracker | High | Medium | MVP |
+| Custom notifications | High | Medium | MVP |
+| Faction member activity | Medium | Medium | MVP |
+| Travel timer | Medium | Low | MVP |
+| Crime profit calculator | Medium | Medium | Phase 2 |
+| Market arbitrage finder | High | High | Phase 2 |
+| Attack log analysis | Medium | High | Phase 2 |
+| Training ROI optimizer | High | High | Phase 2 |
+| Faction war tools | Medium | High | Phase 2 |
+| Shared faction dashboards | Medium | High | Long-term |
+| PWA + push notifications | High | High | Long-term |
+| AI-assisted insights | Medium | Very High | Long-term |
+
+---
+
+## Torn API Compliance
+
+- All requests go through the `/api/torn` server-side proxy — the raw API key is never exposed to the browser
+- Responses are cached in Redis for 5 minutes to minimize API calls
+- Rate limiter enforces a maximum of 80 requests per 60 seconds per user (safely under Torn's ~100 req/min limit)
+- No automated gameplay; the app is read-only and advisory
+- Torn API ToS: https://www.torn.com/forums.php#/p=threads&f=61&t=16197853
+
+---
+
+## Contributing
+
+This is a private project for personal use. Not affiliated with or endorsed by Torn City Ltd.
+
+---
+
+## License
+
+MIT
