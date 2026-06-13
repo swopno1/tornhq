@@ -3,12 +3,12 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = process.env.RESEND_FROM ?? "TornHQ <noreply@tornhq.app>";
+const FROM = process.env.FROM_EMAIL ?? process.env.RESEND_FROM ?? "TornHQ <noreply@tornhq.app>";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 export async function sendVerificationEmail(to: string, token: string) {
   const url = `${APP_URL}/api/auth/verify-email?token=${token}`;
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: FROM,
     to,
     subject: "Verify your TornHQ email address",
@@ -19,11 +19,12 @@ export async function sendVerificationEmail(to: string, token: string) {
       <p class="note">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
     `),
   });
+  if (error) throw new Error(`Resend error: ${JSON.stringify(error)}`);
 }
 
 export async function sendPasswordResetEmail(to: string, token: string) {
   const url = `${APP_URL}/reset-password?token=${token}`;
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: FROM,
     to,
     subject: "Reset your TornHQ password",
@@ -34,6 +35,7 @@ export async function sendPasswordResetEmail(to: string, token: string) {
       <p class="note">This link expires in 1 hour. If you didn't request a reset, ignore this email — your password won't change.</p>
     `),
   });
+  if (error) throw new Error(`Resend error: ${JSON.stringify(error)}`);
 }
 
 function emailTemplate(heading: string, body: string): string {
