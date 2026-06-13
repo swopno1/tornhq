@@ -43,14 +43,11 @@ export async function GET() {
       );
     }
 
-    if (typeof data.points_balance !== "number") {
-      return NextResponse.json(
-        { error: "points_balance not returned — API key may need Limited access or higher." },
-        { status: 400 },
-      );
-    }
+    // Torn omits points_balance (or returns null) when the user has never held casino tokens.
+    // Treat both as 0 — a missing field is not an error.
+    const balance = typeof data.points_balance === "number" ? data.points_balance : 0;
 
-    return NextResponse.json({ balance: data.points_balance });
+    return NextResponse.json({ balance });
   } catch (err) {
     return NextResponse.json(
       { error: `Network error: ${err instanceof Error ? err.message : String(err)}` },

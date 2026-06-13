@@ -220,7 +220,8 @@ export async function fetchSlotsBalance(apiKey: string): Promise<number | null> 
     if (!res.ok) return null;
     const data: TornUserMoney & Partial<TornApiError> = await res.json();
     if (data.error) return null;
-    return typeof data.points_balance === "number" ? data.points_balance : null;
+    // Torn omits points_balance when user has no casino tokens — treat as 0
+    return typeof data.points_balance === "number" ? data.points_balance : 0;
   } catch {
     return null;
   }
