@@ -1,7 +1,7 @@
 import { inngest } from "./client";
 import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
-import { callTornApi } from "@/lib/torn-api";
+import { callTornApi, fetchSlotsBalance, playSlots } from "@/lib/torn-api";
 import type { TornBattleStats, TornItemMarketResponse } from "@/lib/torn-api";
 
 export const takeStatSnapshot = inngest.createFunction(
@@ -131,5 +131,164 @@ export const pollMarketPrices = inngest.createFunction(
     );
 
     return { processed: watchedItems.length, results: results.length };
+  },
+);
+
+export const runSlotsJob = inngest.createFunction(
+  { id: "run-slots-job", name: "Run Slots Spin", triggers: [{ event: "slots/job.tick" }] },
+  async ({ event, step }) => {
+    const { jobId } = event.data as { jobId: string };
+
+    const job = await step.run("fetch-job", () =>
+      prisma.slotsJob.findUnique({
+        where: { id: jobId },
+        include: { user: { select: { apiKeyEnc: true } } },
+      }),
+    );
+
+    if (!job || job.status !== "RUNNING" || !job.user.apiKeyEnc) {
+      return { skipped: true, reason: "not running or no api key" };
+    }
+
+    if (job.completedRuns >= job.totalRuns) {
+      await step.run("mark-complete", () =>
+        prisma.slotsJob.update({ where: { id: jobId }, data: { status: "COMPLETED" } }),
+      );
+      return { completed: true };
+    }
+
+    const spinResult = await step.run("play-spin", async () => {
+      const apiKey = decrypt(job.user.apiKeyEnc!);
+
+      // Balance check before every spin
+      const balance = await fetchSlotsBalance(apiKey);
+      const stopThreshold = job.minBalance > 0 ? job.minBalance : job.betAmount;
+
+      if (balance !== null && balance < stopThreshold) {
+        await prisma.slotsJob.update({
+          where: { id: jobId },
+          data: { status: "PAUSED", lastBalance: balance },
+        });
+        return { paused: true, reason: "balance_low", balance, newStatus: "PAUSED" as const };
+      }
+
+      // Record starting balance on first spin
+      if (job.completedRuns === 0 && balance !== null) {
+        await prisma.slotsJob.update({
+          where: { id: jobId },
+          data: { startingBalance: balance },
+        });
+      }
+
+      let apiResult;
+      try {
+        apiResult = await playSlots(apiKey, job.betAmount);
+      } catch (err) {
+        await prisma.slotsJob.update({ where: { id: jobId }, data: { status: "FAILED" } });
+        throw err;
+      }
+
+      if (apiResult.error) {
+        await prisma.slotsJob.update({ where: { id: jobId }, data: { status: "FAILED" } });
+        throw new Error(`Torn API error: ${apiResult.error.error}`);
+      }
+
+      const won = typeof apiResult.winnings === "number" ? apiResult.winnings : 0;
+      const newCompleted = job.completedRuns + 1;
+      const newStatus = newCompleted >= job.totalRuns ? "COMPLETED" : "RUNNING";
+      const estimatedBalance = balance !== null ? balance - job.betAmount + won : null;
+
+      await prisma.slotsSpinLog.create({
+        data: {
+          jobId,
+          betAmount: job.betAmount,
+          won,
+          balanceBefore: balance,
+          result: apiResult as object,
+        },
+      });
+
+      await prisma.slotsJob.update({
+        where: { id: jobId },
+        data: {
+          completedRuns: { increment: 1 },
+          totalWon: { increment: won },
+          lastBalance: estimatedBalance,
+          lastRunAt: new Date(),
+          status: newStatus,
+        },
+      });
+
+      return { won, paused: false, newCompleted, newStatus, balance: estimatedBalance };
+    });
+
+    if (spinResult.paused || spinResult.newStatus === "COMPLETED") {
+      return spinResult;
+    }
+
+    // Sleep the interval then verify job is still running before queuing next spin
+    await step.sleep("wait-interval", `${job.intervalSecs}s`);
+
+    const statusCheck = await step.run("check-after-sleep", () =>
+      prisma.slotsJob.findUnique({ where: { id: jobId }, select: { status: true } }),
+    );
+
+    if (statusCheck?.status === "RUNNING") {
+      await step.sendEvent("queue-next-spin", {
+        name: "slots/job.tick",
+        data: { jobId },
+      });
+    }
+
+    return spinResult;
+  },
+);
+
+export const triggerDailySlotsJobs = inngest.createFunction(
+  {
+    id: "trigger-daily-slots",
+    name: "Trigger Daily Slots Jobs",
+    triggers: [{ cron: "0 * * * *" }], // Runs every hour — checks if any recurring job is due this UTC hour
+  },
+  async ({ step }) => {
+    const currentHour = new Date().getUTCHours();
+    const twentyThreeHoursAgo = new Date(Date.now() - 23 * 60 * 60 * 1000);
+
+    const dueJobs = await step.run("find-due-jobs", () =>
+      prisma.slotsJob.findMany({
+        where: {
+          isRecurring: true,
+          runHourUtc: currentHour,
+          status: { notIn: ["CANCELLED"] },
+          OR: [{ lastScheduledAt: null }, { lastScheduledAt: { lt: twentyThreeHoursAgo } }],
+        },
+        select: { id: true },
+      }),
+    );
+
+    if (!dueJobs.length) return { triggered: 0, hour: currentHour };
+
+    for (const job of dueJobs) {
+      await step.run(`reset-${job.id}`, () =>
+        prisma.slotsJob.update({
+          where: { id: job.id },
+          data: {
+            completedRuns: 0,
+            totalWon: 0,
+            startingBalance: null,
+            lastBalance: null,
+            status: "RUNNING",
+            lastScheduledAt: new Date(),
+          },
+        }),
+      );
+
+      await step.sendEvent(`start-${job.id}`, {
+        name: "slots/job.tick",
+        data: { jobId: job.id },
+      });
+    }
+
+    return { triggered: dueJobs.length, hour: currentHour };
   },
 );

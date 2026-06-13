@@ -188,6 +188,50 @@ export async function callTornApi<T>(
   return res.json();
 }
 
+export interface TornUserPoints {
+  points?: number;
+}
+
+export interface TornSlotsResult {
+  result?: string;
+  bet?: number;
+  winnings?: number;
+  tokens_won?: number;
+  balance?: number;
+  [key: string]: unknown;
+}
+
+/** Fetches the player's current casino token (points) balance. Returns null on error. */
+export async function fetchSlotsBalance(apiKey: string): Promise<number | null> {
+  try {
+    const data = await callTornApi<TornUserPoints>("/user?selections=points", apiKey);
+    if ((data as Partial<TornApiError>).error) return null;
+    return data.points ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Plays one round of casino slots via Torn API v2.
+ * POST /v2/user/slots — body: { bet: betAmount }
+ * Note: verify the exact endpoint/payload against the Torn API v2 docs if the response changes.
+ */
+export async function playSlots(
+  apiKey: string,
+  betAmount: number,
+): Promise<TornSlotsResult & Partial<TornApiError>> {
+  const BASE_V2 = (process.env.TORN_API_BASE ?? "https://api.torn.com").replace(/\/$/, "");
+  const res = await fetch(`${BASE_V2}/v2/user/slots?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bet: betAmount }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Torn slots API responded with HTTP ${res.status}`);
+  return res.json();
+}
+
 /** Validates an API key by fetching minimal user data. Returns player_id on success, null on failure. */
 export async function validateApiKey(
   apiKey: string,

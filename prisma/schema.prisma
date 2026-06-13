@@ -22,6 +22,7 @@ model User {
   alerts                  Alert[]
   watchedItems            WatchedItem[]
   passwordResetTokens     PasswordResetToken[]
+  slotsJobs               SlotsJob[]
 }
 
 model PasswordResetToken {
@@ -105,4 +106,51 @@ enum AlertType {
   chain_alert
   price_alert
   cooldown_expired
+}
+
+model SlotsJob {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  betAmount       Int
+  intervalSecs    Int
+  totalRuns       Int
+  minBalance      Int            @default(0)
+  isRecurring     Boolean        @default(false)
+  runHourUtc      Int?
+  completedRuns   Int            @default(0)
+  totalWon        Int            @default(0)
+  startingBalance Int?
+  lastBalance     Int?
+  lastScheduledAt DateTime?
+  status          SlotsJobStatus @default(PENDING)
+  lastRunAt       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  logs            SlotsSpinLog[]
+
+  @@index([userId, status])
+  @@index([isRecurring, runHourUtc])
+}
+
+model SlotsSpinLog {
+  id            String   @id @default(cuid())
+  jobId         String
+  job           SlotsJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  betAmount     Int
+  won           Int
+  balanceBefore Int?
+  result        Json
+  spunAt        DateTime @default(now())
+
+  @@index([jobId, spunAt])
+}
+
+enum SlotsJobStatus {
+  PENDING
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
 }

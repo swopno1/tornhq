@@ -13,6 +13,7 @@ import {
   Settings,
   Shield,
   ShieldCheck,
+  Dices,
 } from "lucide-react";
 import {
   Sidebar,
@@ -128,6 +129,30 @@ export function AppSidebar() {
                         )}
                       />
                       <span>Admin Panel</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith("/dashboard/slots")}
+                    tooltip="Casino Slots"
+                    className={cn(
+                      "transition-colors duration-150",
+                      pathname.startsWith("/dashboard/slots") &&
+                        "bg-sidebar-accent text-neon-amber ring-1 ring-neon-amber/20",
+                    )}
+                  >
+                    <Link href="/dashboard/slots">
+                      <Dices
+                        className={cn(
+                          "h-4 w-4",
+                          pathname.startsWith("/dashboard/slots")
+                            ? "text-neon-amber"
+                            : "text-muted-foreground",
+                        )}
+                      />
+                      <span>Slots</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
