@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Zap, ExternalLink, Users, Shield, RefreshCw, AlertCircle } from "lucide-react";
+import { Zap, ExternalLink, Users, Shield, RefreshCw, AlertCircle, List } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BazaarGrid } from "@/components/landing/BazaarGrid";
@@ -92,6 +92,13 @@ export default async function StorefrontPage() {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <Link
+              href="/pricelist"
+              className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <List className="h-3.5 w-3.5" />
+              Pricelist
+            </Link>
             <Link
               href="https://www.vivescriptsolutions.com/"
               target="_blank"
