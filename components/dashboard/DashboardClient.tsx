@@ -67,7 +67,7 @@ export function DashboardClient() {
         <Badge variant="outline" className="border-border font-mono text-xs">
           Lvl {data.level}
         </Badge>
-        {"faction_name" in data.faction && data.faction.faction_id > 0 && (
+        {data.faction != null && "faction_name" in data.faction && data.faction.faction_id > 0 && (
           <Badge variant="outline" className="border-primary/30 font-mono text-xs text-primary">
             {(data.faction as { faction_id: number; faction_name: string }).faction_name}
           </Badge>
