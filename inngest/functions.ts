@@ -160,9 +160,13 @@ export const runSlotsJob = inngest.createFunction(
     const spinResult = await step.run("play-spin", async () => {
       const apiKey = decrypt(job.user.apiKeyEnc!);
 
+      // Resolve actual bet for this spin
+      const isSmart = job.strategy === "SMART_PAROLI";
+      const actualBet = isSmart ? (job.currentBet ?? job.betAmount) : job.betAmount;
+
       // Balance check before every spin
       const balance = await fetchSlotsBalance(apiKey);
-      const stopThreshold = job.minBalance > 0 ? job.minBalance : job.betAmount;
+      const stopThreshold = job.minBalance > 0 ? job.minBalance : actualBet;
 
       if (balance !== null && balance < stopThreshold) {
         await prisma.slotsJob.update({
@@ -182,7 +186,7 @@ export const runSlotsJob = inngest.createFunction(
 
       let apiResult;
       try {
-        apiResult = await playSlots(apiKey, job.betAmount);
+        apiResult = await playSlots(apiKey, actualBet);
       } catch (err) {
         await prisma.slotsJob.update({ where: { id: jobId }, data: { status: "FAILED" } });
         throw err;
@@ -199,12 +203,23 @@ export const runSlotsJob = inngest.createFunction(
       const won = extractSlotsWinnings(apiResult);
       const newCompleted = job.completedRuns + 1;
       const newStatus = newCompleted >= job.totalRuns ? "COMPLETED" : "RUNNING";
-      const estimatedBalance = balance !== null ? balance - job.betAmount + won : null;
+      const estimatedBalance = balance !== null ? balance - actualBet + won : null;
+
+      // Paroli (anti-martingale): double on win, reset on loss or after maxSteps consecutive wins
+      let nextBet = job.betAmount;
+      if (isSmart) {
+        const maxBet = Math.round(job.betAmount * Math.pow(job.strategyMultiplier, job.strategyMaxSteps));
+        if (won > 0 && actualBet < maxBet) {
+          nextBet = Math.min(Math.round(actualBet * job.strategyMultiplier), maxBet);
+        } else {
+          nextBet = job.betAmount; // loss, or completed a full win cycle — reset to base
+        }
+      }
 
       await prisma.slotsSpinLog.create({
         data: {
           jobId,
-          betAmount: job.betAmount,
+          betAmount: actualBet,
           won,
           balanceBefore: balance,
           result: apiResult as object,
@@ -216,13 +231,15 @@ export const runSlotsJob = inngest.createFunction(
         data: {
           completedRuns: { increment: 1 },
           totalWon: { increment: won },
+          totalBet: { increment: actualBet },
           lastBalance: estimatedBalance,
           lastRunAt: new Date(),
           status: newStatus,
+          currentBet: nextBet,
         },
       });
 
-      return { won, paused: false, newCompleted, newStatus, balance: estimatedBalance };
+      return { won, paused: false, newCompleted, newStatus, balance: estimatedBalance, actualBet, nextBet };
     });
 
     if (spinResult.paused || spinResult.newStatus === "COMPLETED") {
@@ -278,6 +295,8 @@ export const triggerDailySlotsJobs = inngest.createFunction(
           data: {
             completedRuns: 0,
             totalWon: 0,
+            totalBet: 0,
+            currentBet: null,
             startingBalance: null,
             lastBalance: null,
             status: "RUNNING",

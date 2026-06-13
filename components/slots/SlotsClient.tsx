@@ -21,6 +21,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Zap,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 
 type SlotsJobStatus = "PENDING" | "RUNNING" | "PAUSED" | "COMPLETED" | "FAILED" | "CANCELLED";
+type SlotStrategy = "FIXED" | "SMART_PAROLI";
 
 interface SpinLog {
   id: string;
@@ -48,8 +50,13 @@ interface SlotsJob {
   minBalance: number;
   isRecurring: boolean;
   runHourUtc: number | null;
+  strategy: SlotStrategy;
+  strategyMultiplier: number;
+  strategyMaxSteps: number;
+  currentBet: number | null;
   completedRuns: number;
   totalWon: number;
+  totalBet: number;
   startingBalance: number | null;
   lastBalance: number | null;
   status: SlotsJobStatus;
@@ -57,6 +64,16 @@ interface SlotsJob {
   createdAt: string;
   logs: SpinLog[];
 }
+
+const BET_OPTIONS = [
+  { label: "10",   value: 10 },
+  { label: "100",  value: 100 },
+  { label: "1K",   value: 1_000 },
+  { label: "10K",  value: 10_000 },
+  { label: "100K", value: 100_000 },
+  { label: "1M",   value: 1_000_000 },
+  { label: "10M",  value: 10_000_000 },
+];
 
 const STATUS_CONFIG: Record<
   SlotsJobStatus,
@@ -81,7 +98,19 @@ function fmtInterval(secs: number) {
 }
 
 function netPnl(job: SlotsJob) {
-  return job.totalWon - job.completedRuns * job.betAmount;
+  // Use totalBet when available (new jobs); fall back to completedRuns*betAmount for old fixed jobs
+  const spent = job.totalBet > 0 ? job.totalBet : job.completedRuns * job.betAmount;
+  return job.totalWon - spent;
+}
+
+function generateParoliPreview(base: number, multiplier: number, steps: number): string {
+  const vals: string[] = [fmt(base)];
+  let cur = base;
+  for (let i = 0; i < Math.min(steps, 5); i++) {
+    cur = Math.round(cur * multiplier);
+    vals.push(fmt(cur));
+  }
+  return vals.join(" → ") + " → reset";
 }
 
 export function SlotsClient() {
@@ -94,12 +123,15 @@ export function SlotsClient() {
 
   // Create form
   const [showForm, setShowForm] = useState(false);
-  const [betAmount, setBetAmount] = useState("100");
+  const [betAmountNum, setBetAmountNum] = useState(100);
   const [intervalSecs, setIntervalSecs] = useState("10");
   const [totalRuns, setTotalRuns] = useState("50");
   const [minBalance, setMinBalance] = useState("0");
   const [isRecurring, setIsRecurring] = useState(false);
   const [runHourUtc, setRunHourUtc] = useState("0");
+  const [strategy, setStrategy] = useState<SlotStrategy>("FIXED");
+  const [strategyMultiplier, setStrategyMultiplier] = useState("2");
+  const [strategyMaxSteps, setStrategyMaxSteps] = useState("3");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -153,12 +185,15 @@ export function SlotsClient() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        betAmount: parseInt(betAmount) || 0,
+        betAmount: betAmountNum,
         intervalSecs: parseInt(intervalSecs) || 10,
         totalRuns: parseInt(totalRuns) || 1,
         minBalance: parseInt(minBalance) || 0,
         isRecurring,
         runHourUtc: isRecurring ? parseInt(runHourUtc) : null,
+        strategy,
+        strategyMultiplier: parseFloat(strategyMultiplier) || 2.0,
+        strategyMaxSteps: parseInt(strategyMaxSteps) || 3,
       }),
     });
 
@@ -171,13 +206,16 @@ export function SlotsClient() {
     }
 
     setShowForm(false);
-    fetchJobs();
-    setBetAmount("100");
+    setBetAmountNum(100);
     setIntervalSecs("10");
     setTotalRuns("50");
     setMinBalance("0");
     setIsRecurring(false);
     setRunHourUtc("0");
+    setStrategy("FIXED");
+    setStrategyMultiplier("2");
+    setStrategyMaxSteps("3");
+    fetchJobs();
   }
 
   async function handlePatch(id: string, status: SlotsJobStatus) {
@@ -213,6 +251,12 @@ export function SlotsClient() {
 
   const activeJobs = jobs.filter((j) => j.status === "RUNNING" || j.status === "PAUSED");
   const pastJobs = jobs.filter((j) => j.status !== "RUNNING" && j.status !== "PAUSED");
+
+  const paroliPreview = generateParoliPreview(
+    betAmountNum,
+    parseFloat(strategyMultiplier) || 2,
+    parseInt(strategyMaxSteps) || 3,
+  );
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -284,19 +328,30 @@ export function SlotsClient() {
         {showForm && (
           <CardContent>
             <form onSubmit={handleCreate} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <div className="space-y-1.5">
-                  <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Bet per Spin (tokens)
-                  </Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={betAmount}
-                    onChange={(e) => setBetAmount(e.target.value)}
-                    className="border-input bg-input font-mono text-sm"
-                  />
+              {/* Bet amount selector */}
+              <div className="space-y-1.5">
+                <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Bet per Spin (tokens)
+                </Label>
+                <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
+                  {BET_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setBetAmountNum(opt.value)}
+                      className={`rounded-sm border py-1.5 font-mono text-xs transition-colors ${
+                        betAmountNum === opt.value
+                          ? "border-neon-cyan/60 bg-neon-cyan/10 text-neon-cyan"
+                          : "border-border text-muted-foreground hover:border-neon-cyan/30 hover:text-foreground"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                     Interval (seconds)
@@ -335,6 +390,87 @@ export function SlotsClient() {
                     className="border-input bg-input font-mono text-sm"
                   />
                 </div>
+              </div>
+
+              <Separator className="bg-border" />
+
+              {/* Strategy selector */}
+              <div className="space-y-2">
+                <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Bet Strategy
+                </Label>
+                <div className="flex overflow-hidden rounded-sm border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setStrategy("FIXED")}
+                    className={`flex-1 py-1.5 font-mono text-xs transition-colors ${
+                      strategy === "FIXED"
+                        ? "bg-neon-cyan/10 text-neon-cyan"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Fixed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStrategy("SMART_PAROLI")}
+                    className={`flex-1 border-l border-border py-1.5 font-mono text-xs transition-colors ${
+                      strategy === "SMART_PAROLI"
+                        ? "bg-neon-amber/10 text-neon-amber"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Zap className="mr-1 inline h-3 w-3" />
+                    Smart Stack
+                  </button>
+                </div>
+
+                {strategy === "SMART_PAROLI" && (
+                  <div className="space-y-3 rounded-sm border border-neon-amber/20 bg-neon-amber/5 px-3 py-3">
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-wider text-neon-amber">
+                        Paroli · Anti-Martingale
+                      </p>
+                      <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                        Double bet on each win, reset to base on loss or after N consecutive wins.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Win Multiplier (×)
+                        </Label>
+                        <Input
+                          type="number"
+                          min={1.5}
+                          max={4}
+                          step={0.5}
+                          value={strategyMultiplier}
+                          onChange={(e) => setStrategyMultiplier(e.target.value)}
+                          className="h-8 border-neon-amber/30 bg-input font-mono text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Max Win Steps
+                        </Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={6}
+                          value={strategyMaxSteps}
+                          onChange={(e) => setStrategyMaxSteps(e.target.value)}
+                          className="h-8 border-neon-amber/30 bg-input font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 rounded-sm bg-background/40 px-2 py-1.5">
+                      <TrendingUp className="h-3 w-3 shrink-0 text-neon-amber/60" />
+                      <span className="font-mono text-[10px] text-neon-amber/70">Preview: </span>
+                      <span className="font-mono text-[10px] text-muted-foreground">{paroliPreview}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Separator className="bg-border" />
@@ -435,6 +571,8 @@ export function SlotsClient() {
             const pct = job.totalRuns > 0 ? (job.completedRuns / job.totalRuns) * 100 : 0;
             const isLoading = actionLoading[job.id];
             const logsOpen = expandedLogs.has(job.id);
+            const isSmart = job.strategy === "SMART_PAROLI";
+            const effectiveBet = isSmart ? (job.currentBet ?? job.betAmount) : job.betAmount;
 
             return (
               <Card key={job.id} className="border-border bg-card">
@@ -445,6 +583,16 @@ export function SlotsClient() {
                       <StatusIcon className="mr-1 h-3 w-3" />
                       {cfg.label}
                     </Badge>
+
+                    {isSmart && (
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 border-neon-amber/30 font-mono text-[10px] text-neon-amber"
+                      >
+                        <Zap className="mr-1 h-3 w-3" />
+                        Smart Stack
+                      </Badge>
+                    )}
 
                     {job.isRecurring && (
                       <Badge
@@ -509,8 +657,14 @@ export function SlotsClient() {
                   <div className="flex flex-wrap gap-2">
                     <span className="inline-flex items-center gap-1 rounded-sm bg-muted px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
                       <Dices className="h-3 w-3" />
-                      {fmt(job.betAmount)} tok/spin
+                      {isSmart ? `Base: ${fmt(job.betAmount)}` : `${fmt(job.betAmount)} tok/spin`}
                     </span>
+                    {isSmart && (
+                      <span className="inline-flex items-center gap-1 rounded-sm bg-neon-amber/10 px-2 py-0.5 font-mono text-[10px] text-neon-amber">
+                        <TrendingUp className="h-3 w-3" />
+                        Next: {fmt(effectiveBet)} · ×{job.strategyMultiplier} up to {job.strategyMaxSteps} wins
+                      </span>
+                    )}
                     <span className="inline-flex items-center gap-1 rounded-sm bg-muted px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
                       <Clock className="h-3 w-3" />
                       {fmtInterval(job.intervalSecs)}

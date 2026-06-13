@@ -6,12 +6,15 @@ import { prisma } from "@/lib/db";
 import { inngest } from "@/inngest/client";
 
 const createSchema = z.object({
-  betAmount: z.number().int().positive(),
+  betAmount: z.number().int().positive().max(10_000_000),
   intervalSecs: z.number().int().min(5).max(86400),
   totalRuns: z.number().int().min(1).max(1000),
   minBalance: z.number().int().min(0).default(0),
   isRecurring: z.boolean().default(false),
   runHourUtc: z.number().int().min(0).max(23).nullable().optional(),
+  strategy: z.enum(["FIXED", "SMART_PAROLI"]).default("FIXED"),
+  strategyMultiplier: z.number().min(1.5).max(4.0).default(2.0),
+  strategyMaxSteps: z.number().int().min(1).max(6).default(3),
 });
 
 export async function GET() {
@@ -56,7 +59,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { betAmount, intervalSecs, totalRuns, minBalance, isRecurring, runHourUtc } = parsed.data;
+  const {
+    betAmount, intervalSecs, totalRuns, minBalance, isRecurring, runHourUtc,
+    strategy, strategyMultiplier, strategyMaxSteps,
+  } = parsed.data;
 
   const job = await prisma.slotsJob.create({
     data: {
@@ -67,6 +73,10 @@ export async function POST(req: Request) {
       minBalance,
       isRecurring,
       runHourUtc: isRecurring ? (runHourUtc ?? 0) : null,
+      strategy,
+      strategyMultiplier,
+      strategyMaxSteps,
+      currentBet: betAmount,
       status: "RUNNING",
     },
   });

@@ -109,25 +109,30 @@ enum AlertType {
 }
 
 model SlotsJob {
-  id              String         @id @default(cuid())
-  userId          String
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  betAmount       Int
-  intervalSecs    Int
-  totalRuns       Int
-  minBalance      Int            @default(0)
-  isRecurring     Boolean        @default(false)
-  runHourUtc      Int?
-  completedRuns   Int            @default(0)
-  totalWon        Int            @default(0)
-  startingBalance Int?
-  lastBalance     Int?
-  lastScheduledAt DateTime?
-  status          SlotsJobStatus @default(PENDING)
-  lastRunAt       DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  logs            SlotsSpinLog[]
+  id                 String         @id @default(cuid())
+  userId             String
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  betAmount          Int
+  intervalSecs       Int
+  totalRuns          Int
+  minBalance         Int            @default(0)
+  isRecurring        Boolean        @default(false)
+  runHourUtc         Int?
+  strategy           String         @default("FIXED")
+  strategyMultiplier Float          @default(2.0)
+  strategyMaxSteps   Int            @default(3)
+  currentBet         Int?
+  completedRuns      Int            @default(0)
+  totalWon           Int            @default(0)
+  totalBet           Int            @default(0)
+  startingBalance    Int?
+  lastBalance        Int?
+  lastScheduledAt    DateTime?
+  status             SlotsJobStatus @default(PENDING)
+  lastRunAt          DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  logs               SlotsSpinLog[]
 
   @@index([userId, status])
   @@index([isRecurring, runHourUtc])
