@@ -93,7 +93,7 @@ export function Topbar({ title }: TopbarProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <a href="/settings" className="cursor-pointer">
+              <a href="/dashboard/settings" className="cursor-pointer">
                 <User className="mr-2 h-4 w-4" />
                 Settings
               </a>
