@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   TrendingUp,
   ShoppingCart,
+  Package,
   Users,
   Plane,
   Settings,
@@ -34,6 +35,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/stats", label: "Stats", icon: TrendingUp },
   { href: "/dashboard/market", label: "Market", icon: ShoppingCart },
+  { href: "/dashboard/inventory", label: "Inventory", icon: Package },
   { href: "/dashboard/faction", label: "Faction", icon: Users },
   { href: "/dashboard/travel", label: "Travel", icon: Plane },
 ] as const;

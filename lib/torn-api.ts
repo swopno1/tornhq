@@ -161,6 +161,19 @@ export interface TornUserBazaarResponse {
   bazaar: TornBazaarItem[] | null;
 }
 
+export interface TornInventoryItem {
+  ID: number;
+  name: string;
+  quantity: number;
+  type: string;
+  market_price: number;
+  equipped?: number;
+}
+
+export interface TornInventoryResponse {
+  inventory: TornInventoryItem[] | null;
+}
+
 /**
  * Makes a typed request to the Torn API.
  * The API key is appended server-side — never pass it from the client.
