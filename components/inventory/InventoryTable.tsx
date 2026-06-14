@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ArrowUpDown, ChevronUp, ChevronDown, Eye, ShoppingBag, RefreshCw } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { RefreshCw, Info, ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -14,95 +13,142 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type {
+  TornV2EquipmentItem,
+  TornV2ClothingItem,
+  TornV2AmmoItem,
+  TornV2BazaarItem,
+} from "@/lib/torn-api";
 
-interface InventoryItem {
-  ID: number;
-  name: string;
-  quantity: number | null;
-  type: string | null;
-  market_price: number | null;
-  equipped?: number | null;
-}
-
-type SortKey = "name" | "type" | "quantity" | "market_price" | "total_value";
-type SortDir = "asc" | "desc";
-
-// Torn inventory returns specific subtypes, not generic "Weapon"
-const TYPE_COLORS: Record<string, string> = {
-  // Melee weapons
-  Melee: "border-red-800/50 text-red-400",
-  Piercing: "border-red-800/50 text-red-400",
-  Slashing: "border-red-800/50 text-red-400",
-  Clubbing: "border-red-800/50 text-red-400",
-  // Primary firearms
-  Rifle: "border-red-800/50 text-red-400",
-  SMG: "border-red-800/50 text-red-400",
-  Shotgun: "border-red-800/50 text-red-400",
-  "Machine Gun": "border-red-800/50 text-red-400",
-  "Heavy Artillery": "border-red-800/50 text-red-400",
-  // Secondary firearms
-  Handgun: "border-orange-800/50 text-orange-400",
-  Throwable: "border-orange-800/50 text-orange-400",
-  // Temporary weapons
-  Temporary: "border-amber-800/50 text-(--neon-amber)",
-  // Defensive / Armor
-  Defensive: "border-blue-800/50 text-blue-400",
-  Armor: "border-blue-800/50 text-blue-400",
-  // Consumables
-  Drug: "border-purple-800/50 text-purple-400",
-  Booster: "border-purple-800/50 text-purple-400",
-  Alcohol: "border-purple-800/50 text-purple-400",
-  "Energy Drink": "border-purple-800/50 text-purple-400",
-  Medical: "border-green-800/50 text-green-400",
-  Enhancer: "border-green-800/50 text-green-400",
-  Candy: "border-pink-800/50 text-pink-400",
-  // Clothing / Wearables
-  Clothing: "border-border text-muted-foreground",
-  Jewelry: "border-border text-muted-foreground",
-  // Collectibles / Valuables
-  Collectible: "border-cyan-800/50 text-(--neon-cyan)",
-  Plushie: "border-cyan-800/50 text-(--neon-cyan)",
-  Flower: "border-cyan-800/50 text-(--neon-cyan)",
-  // Misc
-  Electronics: "border-violet-800/50 text-violet-400",
-  Special: "border-amber-800/50 text-(--neon-amber)",
-  Book: "border-amber-800/50 text-(--neon-amber)",
-  "Supply Pack": "border-amber-800/50 text-(--neon-amber)",
-  Material: "border-border text-muted-foreground",
-  Car: "border-border text-muted-foreground",
-  Key: "border-border text-muted-foreground",
+const WEAPON_SLOT: Record<number, string> = {
+  1: "Primary",
+  2: "Secondary",
+  3: "Melee",
+  5: "Temporary",
 };
 
-function typeColor(type: string | null) {
-  return TYPE_COLORS[type ?? ""] ?? "border-border text-muted-foreground";
+const ARMOR_SLOT: Record<number, string> = {
+  4: "Body",
+  6: "Head",
+  7: "Legs",
+  8: "Feet",
+  9: "Hands",
+};
+
+function qualityColor(q: number | null): string {
+  if (q == null) return "text-muted-foreground";
+  if (q >= 90) return "text-(--neon-cyan)";
+  if (q >= 70) return "text-(--neon-green)";
+  if (q >= 50) return "text-(--neon-amber)";
+  if (q >= 30) return "text-orange-400";
+  return "text-red-400";
+}
+
+function WeaponCard({ item }: { item: TornV2EquipmentItem }) {
+  const slot = WEAPON_SLOT[item.slot] ?? `Slot ${item.slot}`;
+  return (
+    <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-mono text-sm font-semibold text-foreground truncate">{item.name}</p>
+          <p className="font-mono text-[10px] text-muted-foreground">{slot} · #{item.id}</p>
+        </div>
+        {item.sub_type && (
+          <Badge variant="outline" className="shrink-0 font-mono text-[10px] border-red-800/50 text-red-400">
+            {item.sub_type}
+          </Badge>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 gap-x-3 gap-y-1">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Damage</p>
+          <p className="font-mono text-sm font-bold text-(--neon-amber)">
+            {item.stats.damage != null ? item.stats.damage.toFixed(1) : "—"}
+          </p>
+        </div>
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Accuracy</p>
+          <p className="font-mono text-sm font-bold text-(--neon-cyan)">
+            {item.stats.accuracy != null ? item.stats.accuracy.toFixed(1) : "—"}
+          </p>
+        </div>
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Quality</p>
+          <p className={`font-mono text-sm font-bold ${qualityColor(item.stats.quality)}`}>
+            {item.stats.quality != null ? item.stats.quality.toFixed(1) : "—"}
+          </p>
+        </div>
+      </div>
+
+      {item.ammo && (
+        <div className="rounded border border-border/40 bg-muted/10 px-2 py-1.5">
+          <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
+            <span className="text-foreground/60">Ammo:</span>{" "}
+            {item.ammo.name} · {item.ammo.type} ·{" "}
+            <span className="text-(--neon-green)">{item.ammo.quantity.toLocaleString()}</span>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ArmorCard({ item }: { item: TornV2EquipmentItem }) {
+  const slot = ARMOR_SLOT[item.slot] ?? `Slot ${item.slot}`;
+  return (
+    <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-mono text-sm font-semibold text-foreground truncate">{item.name}</p>
+          <p className="font-mono text-[10px] text-muted-foreground">{slot} · #{item.id}</p>
+        </div>
+        <Badge variant="outline" className="shrink-0 font-mono text-[10px] border-blue-800/50 text-blue-400">
+          Armor
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-3">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Armor</p>
+          <p className="font-mono text-sm font-bold text-blue-400">
+            {item.stats.armor != null ? `${item.stats.armor.toFixed(1)}%` : "—"}
+          </p>
+        </div>
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Quality</p>
+          <p className={`font-mono text-sm font-bold ${qualityColor(item.stats.quality)}`}>
+            {item.stats.quality != null ? item.stats.quality.toFixed(1) : "—"}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface InventoryData {
+  equipment: TornV2EquipmentItem[];
+  clothing: TornV2ClothingItem[];
+  ammo: TornV2AmmoItem[];
+  bazaar: TornV2BazaarItem[];
+  bazaarOpen: boolean | null;
 }
 
 export function InventoryTable() {
-  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [data, setData] = useState<InventoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [keyNeedsUpdate, setKeyNeedsUpdate] = useState(false);
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "name", dir: "asc" });
-  const [watching, setWatching] = useState<Set<number>>(new Set());
-  const [watched, setWatched] = useState<Set<number>>(new Set());
 
-  const fetchItems = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    setKeyNeedsUpdate(false);
     try {
       const res = await fetch("/api/inventory");
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (body.errorCode === "KEY_NEEDS_UPDATE") {
-          setKeyNeedsUpdate(true);
-        } else {
-          setError(body.error ?? `HTTP ${res.status}`);
-        }
+        setError(body.error ?? `HTTP ${res.status}`);
         return;
       }
-      const raw = body.items;
-      setItems(Array.isArray(raw) ? raw : raw != null ? Object.values(raw) : []);
+      setData(body);
       setError(null);
     } catch {
       setError("Network error");
@@ -112,269 +158,256 @@ export function InventoryTable() {
   }, []);
 
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
-
-  function toggleSort(key: SortKey) {
-    setSort((prev) =>
-      prev.key === key
-        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: "asc" },
-    );
-  }
-
-  async function watchPrice(item: InventoryItem) {
-    setWatching((prev) => new Set(prev).add(item.ID));
-    try {
-      const res = await fetch("/api/market", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tornItemId: item.ID }),
-      });
-      if (res.ok || res.status === 409) {
-        setWatched((prev) => new Set(prev).add(item.ID));
-      }
-    } finally {
-      setWatching((prev) => {
-        const next = new Set(prev);
-        next.delete(item.ID);
-        return next;
-      });
-    }
-  }
-
-  const filtered = items
-    .filter((i) => i && typeof i.name === "string")
-    .filter((i) => i.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => {
-      const dir = sort.dir === "asc" ? 1 : -1;
-      switch (sort.key) {
-        case "name": return (a.name ?? "").localeCompare(b.name ?? "") * dir;
-        case "type": return (a.type ?? "").localeCompare(b.type ?? "") * dir;
-        case "quantity": return ((a.quantity ?? 0) - (b.quantity ?? 0)) * dir;
-        case "market_price": return ((a.market_price ?? 0) - (b.market_price ?? 0)) * dir;
-        case "total_value": return ((a.market_price ?? 0) * (a.quantity ?? 0) - (b.market_price ?? 0) * (b.quantity ?? 0)) * dir;
-        default: return 0;
-      }
-    });
-
-  const totalQty = filtered.reduce((s, i) => s + (i.quantity ?? 0), 0);
-  const totalValue = filtered.reduce((s, i) => s + (i.market_price ?? 0) * (i.quantity ?? 0), 0);
-
-  function SortHeader({ label, sortKey }: { label: string; sortKey: SortKey }) {
-    const active = sort.key === sortKey;
-    return (
-      <button
-        onClick={() => toggleSort(sortKey)}
-        className="flex items-center gap-1 font-mono text-xs uppercase text-muted-foreground hover:text-foreground transition-colors"
-      >
-        {label}
-        {active ? (
-          sort.dir === "asc"
-            ? <ChevronUp className="h-3 w-3" />
-            : <ChevronDown className="h-3 w-3" />
-        ) : (
-          <ArrowUpDown className="h-3 w-3 opacity-40" />
-        )}
-      </button>
-    );
-  }
+    fetchData();
+  }, [fetchData]);
 
   if (loading) {
     return (
-      <div className="space-y-2">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full rounded-lg" />
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full rounded-lg" />
         ))}
       </div>
     );
   }
 
-  if (keyNeedsUpdate) {
+  if (error) {
     return (
-      <div className="rounded-md border border-amber-800/50 bg-amber-950/20 px-5 py-4 space-y-3">
-        <p className="font-mono text-sm font-semibold text-(--neon-amber)">API key missing &apos;items&apos; permission</p>
-        <p className="font-mono text-xs text-muted-foreground leading-relaxed">
-          Torn moved inventory to API v2. The v2 <span className="text-foreground">/user/items</span> endpoint requires
-          a permission not included in standard Full Access keys — you must create a{" "}
-          <span className="text-foreground">Custom</span> key with that permission explicitly enabled.
-        </p>
-        <ol className="font-mono text-xs text-muted-foreground list-decimal list-inside space-y-1.5">
-          <li>
-            Go to{" "}
-            <a
-              href="https://www.torn.com/preferences.php#tab=api"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-(--neon-cyan) underline underline-offset-2"
-            >
-              torn.com → Preferences → API
-            </a>
-          </li>
-          <li>
-            Click <span className="text-foreground">Add key</span> →{" "}
-            choose <span className="text-foreground">Custom Access</span> (not Full Access)
-          </li>
-          <li>
-            Under <span className="text-foreground">User</span>, enable{" "}
-            <span className="text-foreground">Items</span> and any other selections you want
-          </li>
-          <li>
-            Copy the new key and paste it in{" "}
-            <a href="/settings" className="text-(--neon-cyan) underline underline-offset-2">
-              TornHQ Settings
-            </a>
-          </li>
-        </ol>
-        <p className="font-mono text-[11px] text-muted-foreground">
-          Note: Full Access (level 4) keys do not auto-include v2 permissions — Custom keys do.
-        </p>
+      <div className="rounded-md border border-red-800 bg-red-950/30 px-4 py-3 font-mono text-sm text-red-400">
+        {error}
       </div>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {error && (
-        <div className="rounded-md border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
+  if (!data) return null;
 
-      <div className="flex items-center gap-3">
-        <Input
-          placeholder="Search items..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-8 max-w-xs font-mono text-xs"
-        />
+  const weapons = data.equipment
+    .filter((e) => e.type === "Weapon")
+    .sort((a, b) => a.slot - b.slot);
+
+  const armor = data.equipment
+    .filter((e) => e.type === "Armor")
+    .sort((a, b) => a.slot - b.slot);
+
+  const totalAmmoQty = data.ammo.reduce(
+    (sum, a) => sum + a.types.reduce((s, t) => s + t.quantity, 0),
+    0,
+  );
+
+  return (
+    <div className="space-y-7">
+      {/* API notice */}
+      <div className="flex items-start gap-2 rounded-md border border-border/50 bg-muted/10 px-3 py-2.5">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+          Torn&apos;s API does not expose your full item inventory (the v2 endpoint requires a permission
+          Torn hasn&apos;t released publicly). This page shows your <span className="text-foreground/70">equipped loadout</span>,{" "}
+          <span className="text-foreground/70">ammo</span>, and <span className="text-foreground/70">bazaar listings</span>.
+        </p>
+      </div>
+
+      {/* Refresh */}
+      <div className="flex items-center justify-end">
         <button
-          onClick={fetchItems}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-(--neon-cyan) transition-colors"
+          onClick={fetchData}
+          className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-(--neon-cyan) transition-colors"
         >
           <RefreshCw className="h-3.5 w-3.5" />
           Refresh
         </button>
-        <p className="ml-auto font-mono text-xs text-muted-foreground">
-          {filtered.length} items · {totalQty.toLocaleString()} qty · ~${totalValue.toLocaleString()} value
-        </p>
       </div>
 
-      {filtered.length === 0 ? (
-        <p className="py-8 text-center font-mono text-sm text-muted-foreground">
-          {search ? "No items match your search." : "Your inventory is empty."}
-        </p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border hover:bg-transparent">
-              <TableHead>
-                <SortHeader label="Name" sortKey="name" />
-              </TableHead>
-              <TableHead>
-                <SortHeader label="Type" sortKey="type" />
-              </TableHead>
-              <TableHead className="text-right">
-                <SortHeader label="Qty" sortKey="quantity" />
-              </TableHead>
-              <TableHead className="text-right">
-                <SortHeader label="Market Price" sortKey="market_price" />
-              </TableHead>
-              <TableHead className="text-right">
-                <SortHeader label="Total Value" sortKey="total_value" />
-              </TableHead>
-              <TableHead className="w-20 text-right">
-                <span className="font-mono text-xs uppercase text-muted-foreground">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((item) => {
-              const totalVal = (item.market_price ?? 0) * (item.quantity ?? 0);
-              const isWatched = watched.has(item.ID);
-              const isWatching = watching.has(item.ID);
+      {/* Weapons */}
+      {weapons.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="font-heading text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Weapons
+          </h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {weapons.map((item) => (
+              <WeaponCard key={item.uid} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
 
-              return (
-                <TableRow key={item.ID} className="border-border">
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm text-foreground">{item.name}</p>
-                      {!!item.equipped && (
-                        <Badge
-                          variant="outline"
-                          className="border-(--neon-cyan)/40 text-(--neon-cyan) text-[9px] px-1 py-0"
-                        >
-                          Equipped
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="font-mono text-[10px] text-muted-foreground">ID #{item.ID}</p>
-                  </TableCell>
+      {weapons.length > 0 && armor.length > 0 && <Separator className="border-border/40" />}
 
-                  <TableCell>
-                    {item.type ? (
-                      <Badge
-                        variant="outline"
-                        className={`font-mono text-[10px] ${typeColor(item.type)}`}
-                      >
+      {/* Armor */}
+      {armor.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="font-heading text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Armor
+          </h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {armor.map((item) => (
+              <ArmorCard key={item.uid} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Clothing */}
+      {data.clothing.length > 0 && (
+        <>
+          <Separator className="border-border/40" />
+          <section className="space-y-3">
+            <h3 className="font-heading text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Clothing
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {data.clothing.map((item) => (
+                <div
+                  key={item.uid}
+                  className="rounded-md border border-border bg-background/40 px-3 py-2"
+                >
+                  <p className="font-mono text-xs text-foreground">{item.name}</p>
+                  <p className="font-mono text-[10px] text-muted-foreground">
+                    {item.type} · #{item.id}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* Ammo */}
+      {data.ammo.length > 0 && (
+        <>
+          <Separator className="border-border/40" />
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-heading text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Ammo
+              </h3>
+              <span className="font-mono text-[10px] text-muted-foreground">
+                {totalAmmoQty.toLocaleString()} total rounds
+              </span>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="font-mono text-[10px] uppercase text-muted-foreground">Name</TableHead>
+                  <TableHead className="font-mono text-[10px] uppercase text-muted-foreground">Type</TableHead>
+                  <TableHead className="text-right font-mono text-[10px] uppercase text-muted-foreground">Qty</TableHead>
+                  <TableHead className="text-right font-mono text-[10px] uppercase text-muted-foreground">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.ammo.flatMap((ammo) =>
+                  ammo.types.map((t, i) => (
+                    <TableRow key={`${ammo.id}-${i}`} className="border-border">
+                      <TableCell className="font-mono text-xs text-foreground">
+                        {i === 0 ? ammo.name : ""}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{t.name}</TableCell>
+                      <TableCell className="text-right font-mono text-xs tabular-nums text-(--neon-green)">
+                        {t.quantity.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {t.equipped ? (
+                          <Badge
+                            variant="outline"
+                            className="font-mono text-[9px] border-(--neon-cyan)/40 text-(--neon-cyan)"
+                          >
+                            Loaded
+                          </Badge>
+                        ) : (
+                          <span className="font-mono text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )),
+                )}
+              </TableBody>
+            </Table>
+          </section>
+        </>
+      )}
+
+      {/* Bazaar */}
+      <Separator className="border-border/40" />
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-heading text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Bazaar
+          </h3>
+          {data.bazaarOpen != null && (
+            <Badge
+              variant="outline"
+              className={`font-mono text-[9px] ${
+                data.bazaarOpen
+                  ? "border-(--neon-green)/40 text-(--neon-green)"
+                  : "border-border text-muted-foreground"
+              }`}
+            >
+              {data.bazaarOpen ? "Open" : "Closed"}
+            </Badge>
+          )}
+        </div>
+
+        {data.bazaar.length === 0 ? (
+          <div className="flex items-center gap-2 py-4 font-mono text-sm text-muted-foreground">
+            <ShoppingBag className="h-4 w-4" />
+            No items currently listed in your bazaar.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="font-mono text-[10px] uppercase text-muted-foreground">Item</TableHead>
+                <TableHead className="font-mono text-[10px] uppercase text-muted-foreground">Type</TableHead>
+                <TableHead className="text-right font-mono text-[10px] uppercase text-muted-foreground">Qty</TableHead>
+                <TableHead className="text-right font-mono text-[10px] uppercase text-muted-foreground">Your Price</TableHead>
+                <TableHead className="text-right font-mono text-[10px] uppercase text-muted-foreground">Market</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.bazaar.map((item) => {
+                const diff =
+                  item.market_price > 0
+                    ? ((item.price - item.market_price) / item.market_price) * 100
+                    : null;
+                return (
+                  <TableRow key={item.id} className="border-border">
+                    <TableCell>
+                      <p className="font-mono text-xs text-foreground">{item.name}</p>
+                      <p className="font-mono text-[10px] text-muted-foreground">#{item.id}</p>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono text-[10px] border-border text-muted-foreground">
                         {item.type}
                       </Badge>
-                    ) : (
-                      <span className="font-mono text-[10px] text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-
-                  <TableCell className="text-right font-mono text-sm tabular-nums">
-                    {(item.quantity ?? 0).toLocaleString()}
-                  </TableCell>
-
-                  <TableCell className="text-right font-mono text-sm tabular-nums text-muted-foreground">
-                    {(item.market_price ?? 0) > 0 ? `$${item.market_price!.toLocaleString()}` : "—"}
-                  </TableCell>
-
-                  <TableCell className="text-right font-mono text-sm tabular-nums text-(--neon-green)">
-                    {totalVal > 0 ? `$${totalVal.toLocaleString()}` : "—"}
-                  </TableCell>
-
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className={`h-7 w-7 ${
-                          isWatched
-                            ? "text-(--neon-cyan)"
-                            : "text-muted-foreground hover:text-(--neon-cyan)"
-                        }`}
-                        disabled={isWatching || isWatched}
-                        onClick={() => watchPrice(item)}
-                        title={isWatched ? "Watching price" : "Watch price"}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-muted-foreground hover:text-(--neon-amber)"
-                        title="Manage in Bazaar"
-                        asChild
-                      >
-                        <a
-                          href="https://www.torn.com/bazaar.php"
-                          target="_blank"
-                          rel="noopener noreferrer"
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs tabular-nums">
+                      {item.quantity.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs tabular-nums text-(--neon-amber)">
+                      ${item.price.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <p className="font-mono text-xs tabular-nums text-muted-foreground">
+                        ${item.market_price.toLocaleString()}
+                      </p>
+                      {diff != null && (
+                        <p
+                          className={`font-mono text-[10px] tabular-nums ${
+                            diff <= 0 ? "text-(--neon-green)" : "text-red-400"
+                          }`}
                         >
-                          <ShoppingBag className="h-3.5 w-3.5" />
-                        </a>
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      )}
+                          {diff > 0 ? "+" : ""}
+                          {diff.toFixed(1)}%
+                        </p>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </section>
     </div>
   );
 }

@@ -3,23 +3,15 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
-import type { TornInventoryV2Response, TornInventoryItemV2, TornInventoryItem } from "@/lib/torn-api";
+import type {
+  TornV2EquipmentResponse,
+  TornV2AmmoResponse,
+  TornV2BazaarResponse,
+  TornApiError,
+} from "@/lib/torn-api";
 
 // v2 always uses the canonical Torn host — never TORN_API_BASE (which is v1-scoped)
-const V2_ITEMS_URL = "https://api.torn.com/v2/user/items";
-
-function normalise(v2: TornInventoryItemV2): TornInventoryItem {
-  return {
-    ID: v2.id,
-    uid: v2.uid,
-    name: v2.name,
-    // Prefer sub_type for display (e.g. "SMG" over "Weapon"); fall back to type
-    type: v2.sub_type ?? v2.type,
-    quantity: v2.quantity ?? 1,
-    market_price: v2.market_price ?? 0,
-    equipped: v2.equipped ? 1 : 0,
-  };
-}
+const V2_BASE = "https://api.torn.com/v2/user";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -39,50 +31,36 @@ export async function GET() {
   const apiKey = decrypt(user.apiKeyEnc);
 
   try {
-    const res = await fetch(`${V2_ITEMS_URL}?key=${apiKey}`, { cache: "no-store" });
+    const [equipRes, ammoRes, bazaarRes] = await Promise.all([
+      fetch(`${V2_BASE}/equipment?key=${apiKey}`, { cache: "no-store" }),
+      fetch(`${V2_BASE}/ammo?key=${apiKey}`, { cache: "no-store" }),
+      fetch(`${V2_BASE}/bazaar?key=${apiKey}`, { cache: "no-store" }),
+    ]);
 
-    if (!res.ok) {
+    const [equipData, ammoData, bazaarData] = (await Promise.all([
+      equipRes.json(),
+      ammoRes.json(),
+      bazaarRes.json(),
+    ])) as [
+      TornV2EquipmentResponse & Partial<TornApiError>,
+      TornV2AmmoResponse & Partial<TornApiError>,
+      TornV2BazaarResponse & Partial<TornApiError>,
+    ];
+
+    if (equipData.error) {
       return NextResponse.json(
-        { error: `Torn API responded with HTTP ${res.status}` },
-        { status: 500 },
-      );
-    }
-
-    const data: TornInventoryV2Response & { error?: { code: number; error: string } } =
-      await res.json();
-
-    if (data.error) {
-      if (data.error.code === 16) {
-        // v2 /user/items requires a Custom key with the 'items' permission explicitly enabled.
-        // Standard Full Access (level 4) keys do NOT include this permission automatically.
-        return NextResponse.json(
-          {
-            error:
-              "Your API key is missing the 'items' permission required by Torn API v2. " +
-              "Create a Custom key at Torn (Preferences → API) with the User > Items permission enabled.",
-            errorCode: "KEY_NEEDS_UPDATE",
-          },
-          { status: 403 },
-        );
-      }
-      return NextResponse.json(
-        { error: `Torn API error [${data.error.code}]: ${data.error.error}` },
+        { error: `Torn API error [${equipData.error.code}]: ${equipData.error.error}` },
         { status: 400 },
       );
     }
 
-    const raw = data.items;
-    const values: TornInventoryItemV2[] = Array.isArray(raw)
-      ? raw
-      : raw != null
-        ? (Object.values(raw) as TornInventoryItemV2[])
-        : [];
-
-    const items: TornInventoryItem[] = values
-      .filter((v) => v != null && typeof v.name === "string")
-      .map(normalise);
-
-    return NextResponse.json({ items });
+    return NextResponse.json({
+      equipment: equipData.equipment ?? [],
+      clothing: equipData.clothing ?? [],
+      ammo: ammoData.error ? [] : (ammoData.ammo ?? []),
+      bazaar: bazaarData.error ? [] : (bazaarData.bazaar ?? []),
+      bazaarOpen: bazaarData.error ? null : (bazaarData.bazaar_is_open ?? false),
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Network error" },

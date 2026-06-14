@@ -12,15 +12,14 @@ export default function InventoryPage() {
           Inventory
         </h1>
         <p className="font-mono text-xs text-muted-foreground">
-          Your items — click <span className="text-foreground/70">Watch</span> to track price history ·{" "}
-          <span className="text-foreground/70">Bazaar</span> to manage listings on torn.com
+          Equipped loadout, ammo, and bazaar listings
         </p>
       </div>
 
       <Card className="card-glow border-border bg-card">
         <CardHeader className="pb-2">
           <CardTitle className="font-heading text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            All Items
+            Loadout
           </CardTitle>
         </CardHeader>
         <CardContent>

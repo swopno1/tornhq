@@ -300,6 +300,82 @@ export function extractSlotsWinnings(result: TornSlotsResult): number {
   );
 }
 
+// ── v2 Equipment ─────────────────────────────────────────────────────────────
+
+export interface TornV2EquipmentStats {
+  damage: number | null;
+  accuracy: number | null;
+  armor: number | null;
+  quality: number | null;
+}
+
+export interface TornV2EquipmentAmmo {
+  id: number;
+  name: string;
+  type: string;
+  quantity: number;
+}
+
+export interface TornV2EquipmentItem {
+  id: number;
+  uid: number;
+  name: string;
+  type: string;           // "Weapon", "Armor"
+  sub_type: string | null;
+  stats: TornV2EquipmentStats;
+  bonuses: unknown[];
+  rarity: string | null;
+  slot: number;
+  ammo: TornV2EquipmentAmmo | null;
+  mods: unknown[];
+}
+
+export interface TornV2ClothingItem {
+  id: number;
+  uid: number;
+  name: string;
+  type: string;           // "Enhancer", "Clothing"
+}
+
+export interface TornV2EquipmentResponse {
+  equipment: TornV2EquipmentItem[];
+  clothing: TornV2ClothingItem[];
+}
+
+// ── v2 Ammo ──────────────────────────────────────────────────────────────────
+
+export interface TornV2AmmoType {
+  name: string;
+  quantity: number;
+  equipped: boolean;
+}
+
+export interface TornV2AmmoItem {
+  id: number;
+  name: string;
+  types: TornV2AmmoType[];
+}
+
+export interface TornV2AmmoResponse {
+  ammo: TornV2AmmoItem[];
+}
+
+// ── v2 Bazaar ─────────────────────────────────────────────────────────────────
+
+export interface TornV2BazaarItem {
+  id: number;
+  name: string;
+  type: string;
+  quantity: number;
+  price: number;
+  market_price: number;
+}
+
+export interface TornV2BazaarResponse {
+  bazaar_is_open: boolean;
+  bazaar: TornV2BazaarItem[];
+}
+
 /** Validates an API key by fetching minimal user data. Returns player_id on success, null on failure. */
 export async function validateApiKey(
   apiKey: string,
