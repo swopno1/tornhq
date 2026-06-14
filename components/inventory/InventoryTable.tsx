@@ -18,32 +18,63 @@ import {
 interface InventoryItem {
   ID: number;
   name: string;
-  quantity: number;
-  type: string;
-  market_price: number;
-  equipped?: number;
+  quantity: number | null;
+  type: string | null;
+  market_price: number | null;
+  equipped?: number | null;
 }
 
 type SortKey = "name" | "type" | "quantity" | "market_price" | "total_value";
 type SortDir = "asc" | "desc";
 
+// Torn inventory returns specific subtypes, not generic "Weapon"
 const TYPE_COLORS: Record<string, string> = {
-  Weapon: "border-red-800/50 text-red-400",
+  // Melee weapons
   Melee: "border-red-800/50 text-red-400",
+  Piercing: "border-red-800/50 text-red-400",
+  Slashing: "border-red-800/50 text-red-400",
+  Clubbing: "border-red-800/50 text-red-400",
+  // Primary firearms
+  Rifle: "border-red-800/50 text-red-400",
+  SMG: "border-red-800/50 text-red-400",
+  Shotgun: "border-red-800/50 text-red-400",
+  "Machine Gun": "border-red-800/50 text-red-400",
+  "Heavy Artillery": "border-red-800/50 text-red-400",
+  // Secondary firearms
+  Handgun: "border-orange-800/50 text-orange-400",
+  Throwable: "border-orange-800/50 text-orange-400",
+  // Temporary weapons
+  Temporary: "border-amber-800/50 text-(--neon-amber)",
+  // Defensive / Armor
   Defensive: "border-blue-800/50 text-blue-400",
   Armor: "border-blue-800/50 text-blue-400",
+  // Consumables
   Drug: "border-purple-800/50 text-purple-400",
+  Booster: "border-purple-800/50 text-purple-400",
+  Alcohol: "border-purple-800/50 text-purple-400",
+  "Energy Drink": "border-purple-800/50 text-purple-400",
   Medical: "border-green-800/50 text-green-400",
+  Enhancer: "border-green-800/50 text-green-400",
+  Candy: "border-pink-800/50 text-pink-400",
+  // Clothing / Wearables
   Clothing: "border-border text-muted-foreground",
+  Jewelry: "border-border text-muted-foreground",
+  // Collectibles / Valuables
   Collectible: "border-cyan-800/50 text-(--neon-cyan)",
+  Plushie: "border-cyan-800/50 text-(--neon-cyan)",
+  Flower: "border-cyan-800/50 text-(--neon-cyan)",
+  // Misc
   Electronics: "border-violet-800/50 text-violet-400",
   Special: "border-amber-800/50 text-(--neon-amber)",
-  Temporary: "border-amber-800/50 text-(--neon-amber)",
-  Enhancer: "border-green-800/50 text-green-400",
+  Book: "border-amber-800/50 text-(--neon-amber)",
+  "Supply Pack": "border-amber-800/50 text-(--neon-amber)",
+  Material: "border-border text-muted-foreground",
+  Car: "border-border text-muted-foreground",
+  Key: "border-border text-muted-foreground",
 };
 
-function typeColor(type: string) {
-  return TYPE_COLORS[type] ?? "border-border text-muted-foreground";
+function typeColor(type: string | null) {
+  return TYPE_COLORS[type ?? ""] ?? "border-border text-muted-foreground";
 }
 
 export function InventoryTable() {
@@ -122,8 +153,8 @@ export function InventoryTable() {
       }
     });
 
-  const totalQty = filtered.reduce((s, i) => s + i.quantity, 0);
-  const totalValue = filtered.reduce((s, i) => s + i.market_price * i.quantity, 0);
+  const totalQty = filtered.reduce((s, i) => s + (i.quantity ?? 0), 0);
+  const totalValue = filtered.reduce((s, i) => s + (i.market_price ?? 0) * (i.quantity ?? 0), 0);
 
   function SortHeader({ label, sortKey }: { label: string; sortKey: SortKey }) {
     const active = sort.key === sortKey;
@@ -211,7 +242,7 @@ export function InventoryTable() {
           </TableHeader>
           <TableBody>
             {filtered.map((item) => {
-              const totalVal = item.market_price * item.quantity;
+              const totalVal = (item.market_price ?? 0) * (item.quantity ?? 0);
               const isWatched = watched.has(item.ID);
               const isWatching = watching.has(item.ID);
 
@@ -233,20 +264,24 @@ export function InventoryTable() {
                   </TableCell>
 
                   <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={`font-mono text-[10px] ${typeColor(item.type)}`}
-                    >
-                      {item.type}
-                    </Badge>
+                    {item.type ? (
+                      <Badge
+                        variant="outline"
+                        className={`font-mono text-[10px] ${typeColor(item.type)}`}
+                      >
+                        {item.type}
+                      </Badge>
+                    ) : (
+                      <span className="font-mono text-[10px] text-muted-foreground">—</span>
+                    )}
                   </TableCell>
 
                   <TableCell className="text-right font-mono text-sm tabular-nums">
-                    {item.quantity.toLocaleString()}
+                    {(item.quantity ?? 0).toLocaleString()}
                   </TableCell>
 
                   <TableCell className="text-right font-mono text-sm tabular-nums text-muted-foreground">
-                    {item.market_price > 0 ? `$${item.market_price.toLocaleString()}` : "—"}
+                    {(item.market_price ?? 0) > 0 ? `$${item.market_price!.toLocaleString()}` : "—"}
                   </TableCell>
 
                   <TableCell className="text-right font-mono text-sm tabular-nums text-(--neon-green)">
