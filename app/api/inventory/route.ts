@@ -53,13 +53,13 @@ export async function GET() {
 
     if (data.error) {
       if (data.error.code === 16) {
-        // Old Full Access keys don't include the v2 'items' permission.
-        // User must generate a new key at torn.com/preferences.php#tab=api.
+        // v2 /user/items requires a Custom key with the 'items' permission explicitly enabled.
+        // Standard Full Access (level 4) keys do NOT include this permission automatically.
         return NextResponse.json(
           {
             error:
               "Your API key is missing the 'items' permission required by Torn API v2. " +
-              "Please create a new Full Access key at Torn (Preferences → API) and update it in TornHQ Settings.",
+              "Create a Custom key at Torn (Preferences → API) with the User > Items permission enabled.",
             errorCode: "KEY_NEEDS_UPDATE",
           },
           { status: 403 },

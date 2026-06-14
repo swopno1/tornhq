@@ -192,13 +192,14 @@ export function InventoryTable() {
 
   if (keyNeedsUpdate) {
     return (
-      <div className="rounded-md border border-amber-800/50 bg-amber-950/20 px-5 py-4 space-y-2">
-        <p className="font-mono text-sm font-semibold text-(--neon-amber)">API key needs update</p>
+      <div className="rounded-md border border-amber-800/50 bg-amber-950/20 px-5 py-4 space-y-3">
+        <p className="font-mono text-sm font-semibold text-(--neon-amber)">API key missing &apos;items&apos; permission</p>
         <p className="font-mono text-xs text-muted-foreground leading-relaxed">
-          Torn moved inventory data to API v2, which requires a new permission not present on old
-          Full Access keys. You need to generate a fresh key at Torn.
+          Torn moved inventory to API v2. The v2 <span className="text-foreground">/user/items</span> endpoint requires
+          a permission not included in standard Full Access keys — you must create a{" "}
+          <span className="text-foreground">Custom</span> key with that permission explicitly enabled.
         </p>
-        <ol className="font-mono text-xs text-muted-foreground list-decimal list-inside space-y-1">
+        <ol className="font-mono text-xs text-muted-foreground list-decimal list-inside space-y-1.5">
           <li>
             Go to{" "}
             <a
@@ -210,14 +211,24 @@ export function InventoryTable() {
               torn.com → Preferences → API
             </a>
           </li>
-          <li>Generate a new key — select <span className="text-foreground">Full Access</span></li>
+          <li>
+            Click <span className="text-foreground">Add key</span> →{" "}
+            choose <span className="text-foreground">Custom Access</span> (not Full Access)
+          </li>
+          <li>
+            Under <span className="text-foreground">User</span>, enable{" "}
+            <span className="text-foreground">Items</span> and any other selections you want
+          </li>
           <li>
             Copy the new key and paste it in{" "}
-            <a href="/dashboard/settings" className="text-(--neon-cyan) underline underline-offset-2">
+            <a href="/settings" className="text-(--neon-cyan) underline underline-offset-2">
               TornHQ Settings
             </a>
           </li>
         </ol>
+        <p className="font-mono text-[11px] text-muted-foreground">
+          Note: Full Access (level 4) keys do not auto-include v2 permissions — Custom keys do.
+        </p>
       </div>
     );
   }
