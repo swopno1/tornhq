@@ -161,17 +161,31 @@ export interface TornUserBazaarResponse {
   bazaar: TornBazaarItem[] | null;
 }
 
-export interface TornInventoryItem {
-  ID: number;
+// v2 /user/items response — replaces deprecated v1 inventory selection
+export interface TornInventoryItemV2 {
+  id: number;
+  uid?: number;          // unique instance ID for non-stackable items (weapons, armor)
   name: string;
-  quantity: number;
-  type: string;
-  market_price: number;
-  equipped?: number;
+  type: string;          // general category: "Weapon", "Drug", "Medical", etc.
+  sub_type?: string;     // specific type: "SMG", "Rifle", "Shotgun", etc.
+  quantity?: number;     // stackable items only; weapons may omit this (implicitly 1)
+  market_price?: number;
+  equipped?: boolean | number;
 }
 
-export interface TornInventoryResponse {
-  inventory: TornInventoryItem[] | null;
+export interface TornInventoryV2Response {
+  items: TornInventoryItemV2[] | Record<string, TornInventoryItemV2> | null;
+}
+
+// Normalised shape used across UI — merged from v2 fields
+export interface TornInventoryItem {
+  ID: number;
+  uid?: number;
+  name: string;
+  quantity: number;
+  type: string;         // sub_type preferred for display (e.g. "SMG"), falls back to type
+  market_price: number;
+  equipped?: number;
 }
 
 /**

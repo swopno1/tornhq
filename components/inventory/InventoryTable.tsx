@@ -81,6 +81,7 @@ export function InventoryTable() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [keyNeedsUpdate, setKeyNeedsUpdate] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "name", dir: "asc" });
   const [watching, setWatching] = useState<Set<number>>(new Set());
@@ -88,15 +89,19 @@ export function InventoryTable() {
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
+    setKeyNeedsUpdate(false);
     try {
       const res = await fetch("/api/inventory");
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setError(body.error ?? `HTTP ${res.status}`);
+        if (body.errorCode === "KEY_NEEDS_UPDATE") {
+          setKeyNeedsUpdate(true);
+        } else {
+          setError(body.error ?? `HTTP ${res.status}`);
+        }
         return;
       }
-      const data = await res.json();
-      const raw = data.items;
+      const raw = body.items;
       setItems(Array.isArray(raw) ? raw : raw != null ? Object.values(raw) : []);
       setError(null);
     } catch {
@@ -181,6 +186,38 @@ export function InventoryTable() {
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-12 w-full rounded-lg" />
         ))}
+      </div>
+    );
+  }
+
+  if (keyNeedsUpdate) {
+    return (
+      <div className="rounded-md border border-amber-800/50 bg-amber-950/20 px-5 py-4 space-y-2">
+        <p className="font-mono text-sm font-semibold text-(--neon-amber)">API key needs update</p>
+        <p className="font-mono text-xs text-muted-foreground leading-relaxed">
+          Torn moved inventory data to API v2, which requires a new permission not present on old
+          Full Access keys. You need to generate a fresh key at Torn.
+        </p>
+        <ol className="font-mono text-xs text-muted-foreground list-decimal list-inside space-y-1">
+          <li>
+            Go to{" "}
+            <a
+              href="https://www.torn.com/preferences.php#tab=api"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-(--neon-cyan) underline underline-offset-2"
+            >
+              torn.com → Preferences → API
+            </a>
+          </li>
+          <li>Generate a new key — select <span className="text-foreground">Full Access</span></li>
+          <li>
+            Copy the new key and paste it in{" "}
+            <a href="/dashboard/settings" className="text-(--neon-cyan) underline underline-offset-2">
+              TornHQ Settings
+            </a>
+          </li>
+        </ol>
       </div>
     );
   }
